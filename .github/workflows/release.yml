@@ -50,7 +50,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "v__VERSION__"
-          releaseBody: "See assets for DMG downloads."
-          releaseDraft: true
+          releaseBody: "See assets for downloads."
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
