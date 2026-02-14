@@ -1,0 +1,27 @@
+[package]
+name = "launchd-ui"
+version = "0.1.0"
+description = "A GUI for managing macOS launchd agents and daemons"
+authors = ["azu"]
+license = "MIT"
+repository = "https://github.com/azu/launchd-ui"
+edition = "2024"
+rust-version = "1.85.0"
+
+[lib]
+name = "launchd_ui_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.4", features = [] }
+
+[dependencies]
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2.10.0", features = [] }
+plist = "1"
+thiserror = "2"
+dirs = "6"
+
+[dev-dependencies]
+tempfile = "3"
