@@ -1,6 +1,6 @@
 [package]
 name = "launchd-ui"
-version = "1.0.0"
+version = "1.0.1"
 description = "A GUI for managing macOS launchd agents and daemons"
 authors = ["azu"]
 license = "MIT"
