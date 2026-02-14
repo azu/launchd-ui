@@ -11,7 +11,8 @@ pub enum JobSource {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum JobStatus {
     Running,
-    Stopped,
+    Loaded,
+    Unloaded,
     Unknown,
 }
 

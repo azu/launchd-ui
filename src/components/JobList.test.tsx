@@ -18,7 +18,7 @@ const mockJobs: JobListEntry[] = [
     last_exit_code: 78,
     plist_path: "/Users/test/Library/LaunchAgents/com.example.stopped.plist",
     source: "UserAgent",
-    status: "Stopped",
+    status: "Unloaded",
   },
 ]
 
@@ -92,7 +92,7 @@ describe("JobList", () => {
       />
     )
     expect(screen.getByText("Running")).toBeInTheDocument()
-    expect(screen.getByText("Stopped")).toBeInTheDocument()
+    expect(screen.getByText("Unloaded")).toBeInTheDocument()
   })
 
   it("renders PID for running job", () => {

@@ -39,8 +39,14 @@ function StatusBadge({ status }: { status: JobListEntry["status"] }) {
           Running
         </Badge>
       )
-    case "Stopped":
-      return <Badge variant="secondary">Stopped</Badge>
+    case "Loaded":
+      return (
+        <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
+          Loaded
+        </Badge>
+      )
+    case "Unloaded":
+      return <Badge variant="secondary">Unloaded</Badge>
     default:
       return <Badge variant="outline">Unknown</Badge>
   }
@@ -105,6 +111,17 @@ export function JobRow({
             >
               <Square className="h-4 w-4" />
             </Button>
+          ) : job.status === "Loaded" ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onStop(job)}
+              disabled={!isUserAgent}
+              title={isUserAgent ? "Unload" : "Cannot unload system agents"}
+            >
+              <Square className="h-4 w-4" />
+            </Button>
           ) : (
             <Button
               variant="ghost"
@@ -112,21 +129,23 @@ export function JobRow({
               className="h-8 w-8"
               onClick={() => onStart(job)}
               disabled={!isUserAgent}
-              title={isUserAgent ? "Start" : "Cannot start system agents"}
+              title={isUserAgent ? "Load" : "Cannot load system agents"}
             >
               <Play className="h-4 w-4" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onRestart(job)}
-            disabled={!isUserAgent}
-            title={isUserAgent ? "Restart" : "Cannot restart system agents"}
-          >
-            <RotateCw className="h-4 w-4" />
-          </Button>
+          {job.status !== "Unloaded" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onRestart(job)}
+              disabled={!isUserAgent}
+              title={isUserAgent ? "Restart" : "Cannot restart system agents"}
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">

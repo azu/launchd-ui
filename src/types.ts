@@ -1,5 +1,5 @@
 export type JobSource = "UserAgent" | "SystemAgent" | "SystemDaemon"
-export type JobStatus = "Running" | "Stopped" | "Unknown"
+export type JobStatus = "Running" | "Loaded" | "Unloaded" | "Unknown"
 
 export type JobListEntry = {
   label: string

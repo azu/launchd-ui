@@ -36,11 +36,11 @@ pub async fn list_jobs() -> Result<Vec<JobListEntry>, AppError> {
             let status = if svc.pid.is_some() {
                 JobStatus::Running
             } else {
-                JobStatus::Stopped
+                JobStatus::Loaded
             };
             (status, svc.pid, svc.last_exit_code)
         } else {
-            (JobStatus::Stopped, None, None)
+            (JobStatus::Unloaded, None, None)
         };
 
         entries.push(JobListEntry {
@@ -72,11 +72,11 @@ pub async fn get_job_detail(plist_path: String) -> Result<LaunchdJob, AppError> 
             let status = if s.pid.is_some() {
                 JobStatus::Running
             } else {
-                JobStatus::Stopped
+                JobStatus::Loaded
             };
             (status, s.pid, s.last_exit_code)
         }
-        None => (JobStatus::Stopped, None, None),
+        None => (JobStatus::Unloaded, None, None),
     };
 
     let source = if plist_path.contains("/Library/LaunchDaemons") {

@@ -86,8 +86,11 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
           <div className="space-y-4 px-4 pb-4">
             <div className="flex items-center gap-2">
               <Badge
-                variant={job.status === "Running" ? "default" : "secondary"}
-                className={job.status === "Running" ? "bg-emerald-500" : ""}
+                variant={job.status === "Running" || job.status === "Loaded" ? "default" : "secondary"}
+                className={
+                  job.status === "Running" ? "bg-emerald-500" :
+                  job.status === "Loaded" ? "bg-blue-500" : ""
+                }
               >
                 {job.status}
               </Badge>
