@@ -1,8 +1,8 @@
 # launchd-ui
 
-macOS の launchd エージェント/デーモンを管理するGUIアプリケーション。Tauri v2 で構築。
+A GUI application for managing macOS launchd agents and daemons. Built with Tauri v2.
 
-ユーザーの LaunchAgents (`~/Library/LaunchAgents/`) やシステムのエージェント/デーモンの一覧表示、起動・停止・再起動、plist の閲覧・編集、新規エージェントの作成ができる。
+Browse user LaunchAgents (`~/Library/LaunchAgents/`) and system agents/daemons. Start, stop, restart, view/edit plist files, and create new agents.
 
 ## Tech Stack
 
@@ -15,16 +15,16 @@ macOS の launchd エージェント/デーモンを管理するGUIアプリケ�
 ## Development
 
 ```bash
-# 依存関係のインストール
+# Install dependencies
 pnpm install
 
-# 開発（Tauri アプリとして起動、ホットリロード対応）
+# Dev mode (launches app with hot reload)
 pnpm tauri:dev
 
-# フロントエンドのみ起動
+# Frontend only
 pnpm dev
 
-# ビルド（DMG）
+# Production build (DMG)
 pnpm tauri:build
 ```
 
