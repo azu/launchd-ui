@@ -8,16 +8,16 @@ Browse user LaunchAgents (`~/Library/LaunchAgents/`) and system agents/daemons. 
 
 ## Features
 
-- User Agent (`~/Library/LaunchAgents/`)、System Agent、System Daemon の一覧表示
-- ラベル検索とソース別フィルタリング（User / System / Daemon）
-- User Agent の Start / Stop / Restart / Test Run（即時実行）
-- 新規エージェントの作成、既存エージェントの編集・削除
-- スケジュール設定（インターバル / カレンダー）と次回実行時刻のプレビュー
-- stdout / stderr ログの閲覧
-- plist 設定の詳細表示
-- Finder でファイルの場所を表示
+- List User Agents (`~/Library/LaunchAgents/`), System Agents, and System Daemons
+- Search by label and filter by source (User / System / Daemon)
+- Start / Stop / Restart / Test Run (immediate execution) for User Agents
+- Create new agents, edit and delete existing ones
+- Schedule configuration (interval / calendar) with next run time preview
+- View stdout / stderr logs
+- Inspect plist configuration details
+- Reveal plist file in Finder
 
-System Agent / System Daemon は閲覧とTest Runのみ可能。変更操作は User Agent に限定される。
+System Agents and Daemons are read-only. Modification operations are limited to User Agents.
 
 ## Tech Stack
 
