@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "launchd-ui",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "identifier": "com.github.azu.launchd-ui",
   "build": {
     "frontendDist": "../dist",
