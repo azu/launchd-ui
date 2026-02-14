@@ -4,7 +4,7 @@ A GUI application for managing macOS launchd agents and daemons. Built with Taur
 
 Browse user LaunchAgents (`~/Library/LaunchAgents/`) and system agents/daemons. Start, stop, restart, view/edit plist files, and create new agents.
 
-![screenshot](screenshot.png)
+![screenshot](screenshot.jpg)
 
 ## Tech Stack
 
