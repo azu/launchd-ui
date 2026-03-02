@@ -1,4 +1,4 @@
-import type { JobListEntry, LaunchdJob, PlistConfig } from "@/types"
+import type { JobListEntry, LaunchdJob, PlistConfig, ProcessStats } from "@/types"
 
 const defaultPlistConfig: PlistConfig = {
   label: "",
@@ -90,6 +90,15 @@ const handlers: Record<string, CommandHandler> = {
   }),
   open_log_in_editor: () => undefined,
   reveal_in_finder: () => undefined,
+  get_process_stats: (args) => {
+    const pid = args.pid as number
+    return {
+      pid,
+      cpu_percent: 5.2,
+      memory_bytes: 52_428_800,
+      timestamp: Date.now(),
+    } satisfies ProcessStats
+  },
 }
 
 let customHandlers: Record<string, CommandHandler> = {}

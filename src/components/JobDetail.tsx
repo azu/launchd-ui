@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LogViewer } from "@/components/LogViewer"
+import { ResourceMonitor } from "@/components/ResourceMonitor"
 import type { LaunchdJob } from "@/types"
 import { getJobDetail, revealInFinder } from "@/lib/invoke"
 import type { CalendarInterval } from "@/types"
@@ -59,6 +60,7 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
 export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) {
   const [job, setJob] = useState<LaunchdJob | null>(null)
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState("config")
 
   useEffect(() => {
     if (!plistPath || !open) return
@@ -70,7 +72,7 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
   }, [plistPath, open])
 
   return (
-    <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen) { setActiveTab("config"); onClose() } }}>
       <SheetContent className="w-[600px] sm:w-[640px] sm:max-w-[640px] overflow-y-auto p-0">
         <SheetHeader>
           <SheetTitle className="text-base font-semibold">
@@ -122,10 +124,11 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
 
             <Separator />
 
-            <Tabs defaultValue="config">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="config">Configuration</TabsTrigger>
                 <TabsTrigger value="logs">Logs</TabsTrigger>
+                <TabsTrigger value="monitor">Monitor</TabsTrigger>
               </TabsList>
 
               <TabsContent value="config" className="space-y-1">
@@ -220,6 +223,13 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                       </div>
                     )}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="monitor">
+                <ResourceMonitor
+                  pid={job.pid ?? null}
+                  enabled={activeTab === "monitor"}
+                />
               </TabsContent>
             </Tabs>
           </div>
