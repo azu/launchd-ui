@@ -34,6 +34,13 @@ export type PlistConfig = {
   raw_xml: string
 }
 
+export type ProcessStats = {
+  pid: number
+  cpu_percent: number
+  memory_bytes: number
+  timestamp: number
+}
+
 export type LaunchdJob = {
   label: string
   plist_path: string

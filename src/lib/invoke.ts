@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { JobListEntry, LaunchdJob, PlistConfig } from "@/types"
+import type { JobListEntry, LaunchdJob, PlistConfig, ProcessStats } from "@/types"
 
 export const listJobs = () => invoke<JobListEntry[]>("list_jobs")
 
@@ -51,3 +51,6 @@ export const getHomeDir = () => invoke<string>("get_home_dir")
 
 export const revealInFinder = (path: string) =>
   invoke<void>("reveal_in_finder", { path })
+
+export const getProcessStats = (pid: number) =>
+  invoke<ProcessStats>("get_process_stats", { pid })
