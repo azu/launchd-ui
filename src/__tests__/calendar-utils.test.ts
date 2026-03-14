@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   detectHourRange,
   expandHourRange,
+  getNextOccurrences,
   getNextOccurrencesMulti,
   formatCalendarIntervals,
 } from "@/lib/calendar-utils"
@@ -111,6 +112,67 @@ describe("expandHourRange", () => {
     const result = expandHourRange(base, 9, 9)
     expect(result).toHaveLength(1)
     expect(result[0].hour).toBe(9)
+  })
+
+  it("returns empty array when from > to", () => {
+    const base: CalendarInterval = {
+      minute: 0,
+      hour: null,
+      day: null,
+      weekday: null,
+      month: null,
+    }
+    const result = expandHourRange(base, 23, 7)
+    expect(result).toEqual([])
+  })
+})
+
+describe("getNextOccurrences", () => {
+  it("returns future occurrences for specific hour and minute", () => {
+    const ci: CalendarInterval = {
+      minute: 30,
+      hour: 14,
+      day: null,
+      weekday: null,
+      month: null,
+    }
+    const results = getNextOccurrences(ci, 3)
+    expect(results).toHaveLength(3)
+    for (const d of results) {
+      expect(d.getHours()).toBe(14)
+      expect(d.getMinutes()).toBe(30)
+    }
+  })
+
+  it("returns occurrences matching every hour when hour is null", () => {
+    const ci: CalendarInterval = {
+      minute: 0,
+      hour: null,
+      day: null,
+      weekday: null,
+      month: null,
+    }
+    const results = getNextOccurrences(ci, 3)
+    expect(results).toHaveLength(3)
+    for (const d of results) {
+      expect(d.getMinutes()).toBe(0)
+    }
+  })
+
+  it("returns occurrences for specific weekday", () => {
+    const ci: CalendarInterval = {
+      minute: 0,
+      hour: 9,
+      day: null,
+      weekday: 1, // Monday
+      month: null,
+    }
+    const results = getNextOccurrences(ci, 3)
+    expect(results).toHaveLength(3)
+    for (const d of results) {
+      expect(d.getDay()).toBe(1)
+      expect(d.getHours()).toBe(9)
+    }
   })
 })
 
