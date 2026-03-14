@@ -15,9 +15,9 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "preview": "vite preview",
-    "version:patch": "node scripts/bump-version.ts patch && git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml && git commit -m \"chore: bump version to $(node -p \"require('./package.json').version\")\" && git tag v$(node -p \"require('./package.json').version\")",
-    "version:minor": "node scripts/bump-version.ts minor && git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml && git commit -m \"chore: bump version to $(node -p \"require('./package.json').version\")\" && git tag v$(node -p \"require('./package.json').version\")",
-    "version:major": "node scripts/bump-version.ts major && git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml && git commit -m \"chore: bump version to $(node -p \"require('./package.json').version\")\" && git tag v$(node -p \"require('./package.json').version\")"
+    "version:patch": "node scripts/bump-version.ts patch && git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock && git commit -m \"chore: bump version to $(node -p \"require('./package.json').version\")\" && git tag v$(node -p \"require('./package.json').version\")",
+    "version:minor": "node scripts/bump-version.ts minor && git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock && git commit -m \"chore: bump version to $(node -p \"require('./package.json').version\")\" && git tag v$(node -p \"require('./package.json').version\")",
+    "version:major": "node scripts/bump-version.ts major && git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock && git commit -m \"chore: bump version to $(node -p \"require('./package.json').version\")\" && git tag v$(node -p \"require('./package.json').version\")"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

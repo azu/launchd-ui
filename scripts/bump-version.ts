@@ -33,4 +33,12 @@ const updatedCargo = cargoToml.replace(
 )
 writeFileSync("src-tauri/Cargo.toml", updatedCargo)
 
+// src-tauri/Cargo.lock — update the version for the launchd-ui package
+const cargoLock = readFileSync("src-tauri/Cargo.lock", "utf-8")
+const updatedLock = cargoLock.replace(
+  /(\[\[package\]\]\nname = "launchd-ui"\nversion = )"[^"]*"/,
+  `$1"${newVersion}"`
+)
+writeFileSync("src-tauri/Cargo.lock", updatedLock)
+
 console.log(`v${newVersion}`)
