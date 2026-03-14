@@ -241,4 +241,20 @@ describe("formatCalendarIntervals", () => {
     const result = formatCalendarIntervals(intervals)
     expect(result).toBe("Every day at 09:00")
   })
+
+  it("formats every-hour interval with hour null", () => {
+    const intervals: CalendarInterval[] = [
+      { minute: 0, hour: null, day: null, weekday: null, month: null },
+    ]
+    const result = formatCalendarIntervals(intervals)
+    expect(result).toBe("Every day every hour at :00")
+  })
+
+  it("formats every-hour interval with weekday", () => {
+    const intervals: CalendarInterval[] = [
+      { minute: 30, hour: null, day: null, weekday: 5, month: null },
+    ]
+    const result = formatCalendarIntervals(intervals)
+    expect(result).toBe("Every Friday every hour at :30")
+  })
 })

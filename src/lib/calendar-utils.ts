@@ -156,9 +156,12 @@ function formatSingleCalendarInterval(ci: CalendarInterval): string {
   } else {
     parts.push("Every day")
   }
-  const hour = ci.hour ?? 0
   const minute = ci.minute ?? 0
-  parts.push(`at ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`)
+  if (ci.hour === null || ci.hour === undefined) {
+    parts.push(`every hour at :${String(minute).padStart(2, "0")}`)
+  } else {
+    parts.push(`at ${String(ci.hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`)
+  }
   return parts.join(" ")
 }
 
