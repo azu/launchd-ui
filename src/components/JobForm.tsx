@@ -18,6 +18,13 @@ import {
 } from "@/components/ui/select"
 import type { PlistConfig, LaunchdJob, CalendarInterval } from "@/types"
 import { getHomeDir } from "@/lib/invoke"
+import {
+  detectHourRange,
+  expandHourRange,
+  getNextOccurrences,
+  getNextOccurrencesMulti,
+  formatDateTime,
+} from "@/lib/calendar-utils"
 
 type JobFormProps = {
   open: boolean
@@ -79,49 +86,25 @@ function emptyConfig(): PlistConfig {
 
 type ScheduleType = "none" | "interval" | "calendar"
 
+type HourMode = "specific" | "every" | "range"
+
 function detectScheduleType(config: PlistConfig): ScheduleType {
   if (config.start_interval) return "interval"
   if (config.start_calendar_interval && config.start_calendar_interval.length > 0) return "calendar"
   return "none"
 }
 
-const weekdayLabels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-
-function getNextOccurrences(ci: CalendarInterval, count: number): Date[] {
-  const results: Date[] = []
-  const now = new Date()
-  const candidate = new Date(now)
-  candidate.setSeconds(0, 0)
-
-  // Start from current minute + 1 to find future times
-  candidate.setMinutes(candidate.getMinutes() + 1)
-
-  // Search up to 400 days ahead to handle monthly schedules
-  const limit = 400 * 24 * 60
-  for (let i = 0; i < limit && results.length < count; i++) {
-    const matches =
-      (ci.month === null || ci.month === undefined || candidate.getMonth() + 1 === ci.month) &&
-      (ci.day === null || ci.day === undefined || candidate.getDate() === ci.day) &&
-      (ci.weekday === null || ci.weekday === undefined || candidate.getDay() === ci.weekday) &&
-      (ci.hour === null || ci.hour === undefined || candidate.getHours() === ci.hour) &&
-      (ci.minute === null || ci.minute === undefined || candidate.getMinutes() === ci.minute)
-
-    if (matches) {
-      results.push(new Date(candidate))
-    }
-    candidate.setMinutes(candidate.getMinutes() + 1)
+function detectHourMode(config: PlistConfig): HourMode {
+  if (config.start_calendar_interval && config.start_calendar_interval.length > 0) {
+    const range = detectHourRange(config.start_calendar_interval)
+    if (range) return "range"
+    const first = config.start_calendar_interval[0]
+    if (first.hour === null || first.hour === undefined) return "every"
   }
-  return results
+  return "specific"
 }
 
-function formatDateTime(date: Date): string {
-  const weekday = weekdayLabels[date.getDay()]
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  const hour = String(date.getHours()).padStart(2, "0")
-  const minute = String(date.getMinutes()).padStart(2, "0")
-  return `${month}/${day} (${weekday}) ${hour}:${minute}`
-}
+const weekdayLabels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
   const [config, setConfig] = useState<PlistConfig>(
@@ -132,17 +115,27 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
       ? formatArguments(editingJob.plist.program_arguments)
       : ""
   )
+  const initPlist = editingJob?.plist ?? emptyConfig()
   const [scheduleType, setScheduleType] = useState<ScheduleType>(
-    detectScheduleType(editingJob?.plist ?? emptyConfig())
+    detectScheduleType(initPlist)
   )
+  const existingRange = editingJob?.plist.start_calendar_interval
+    ? detectHourRange(editingJob.plist.start_calendar_interval)
+    : null
   const [calendarInterval, setCalendarInterval] = useState<CalendarInterval>(
-    editingJob?.plist.start_calendar_interval?.[0] ?? {
-      minute: 0,
-      hour: 9,
-      day: null,
-      weekday: null,
-      month: null,
-    }
+    existingRange
+      ? existingRange.base
+      : editingJob?.plist.start_calendar_interval?.[0] ?? {
+          minute: 0,
+          hour: 9,
+          day: null,
+          weekday: null,
+          month: null,
+        }
+  )
+  const [hourMode, setHourMode] = useState<HourMode>(detectHourMode(initPlist))
+  const [hourRange, setHourRange] = useState<{ from: number; to: number }>(
+    existingRange ? { from: existingRange.from, to: existingRange.to } : { from: 7, to: 23 }
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -162,6 +155,10 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
       setError("Label is required")
       return
     }
+    if (scheduleType === "calendar" && hourMode === "range" && hourRange.from > hourRange.to) {
+      setError("Hour range 'from' must be less than or equal to 'to'")
+      return
+    }
 
     const parsedArgs = args.trim() ? parseArguments(args.trim()) : null
     const finalConfig: PlistConfig = {
@@ -169,7 +166,11 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
       program_arguments: parsedArgs,
       program: parsedArgs ? parsedArgs[0] : config.program,
       start_interval: scheduleType === "interval" ? (config.start_interval || null) : null,
-      start_calendar_interval: scheduleType === "calendar" ? [calendarInterval] : null,
+      start_calendar_interval: scheduleType === "calendar"
+        ? hourMode === "range"
+          ? expandHourRange(calendarInterval, hourRange.from, hourRange.to)
+          : [calendarInterval]
+        : null,
       standard_out_path: config.standard_out_path?.trim() || null,
       standard_error_path: config.standard_error_path?.trim() || null,
       working_directory: config.working_directory?.trim() || null,
@@ -348,9 +349,33 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
 
           {scheduleType === "calendar" && (
             <div className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label>Hour</Label>
+                <Select
+                  value={hourMode}
+                  onValueChange={(v) => {
+                    const mode = v as HourMode
+                    setHourMode(mode)
+                    if (mode === "specific" && (calendarInterval.hour === null || calendarInterval.hour === undefined)) {
+                      setCalendarInterval({ ...calendarInterval, hour: 9 })
+                    }
+                    if (mode === "every") {
+                      setCalendarInterval({ ...calendarInterval, hour: null })
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="specific">Specific hour</SelectItem>
+                    <SelectItem value="every">Every hour</SelectItem>
+                    <SelectItem value="range">Hour range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {hourMode === "specific" && (
                 <div className="grid gap-1.5">
-                  <Label htmlFor="cal-hour">Hour</Label>
                   <Input
                     id="cal-hour"
                     type="number"
@@ -366,23 +391,53 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
                     }
                   />
                 </div>
+              )}
+              {hourMode === "range" && (
                 <div className="grid gap-1.5">
-                  <Label htmlFor="cal-minute">Minute</Label>
-                  <Input
-                    id="cal-minute"
-                    type="number"
-                    min={0}
-                    max={59}
-                    placeholder="0"
-                    value={calendarInterval.minute ?? ""}
-                    onChange={(e) =>
-                      setCalendarInterval({
-                        ...calendarInterval,
-                        minute: e.target.value ? Number(e.target.value) : null,
-                      })
-                    }
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={23}
+                      placeholder="7"
+                      value={hourRange.from}
+                      onChange={(e) =>
+                        setHourRange({ ...hourRange, from: Number(e.target.value) })
+                      }
+                    />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">to</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={23}
+                      placeholder="23"
+                      value={hourRange.to}
+                      onChange={(e) =>
+                        setHourRange({ ...hourRange, to: Number(e.target.value) })
+                      }
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Runs every hour within this range (e.g. 7 to 23 = runs at 7:00, 8:00, ... 23:00).
+                  </p>
                 </div>
+              )}
+              <div className="grid gap-1.5">
+                <Label htmlFor="cal-minute">Minute</Label>
+                <Input
+                  id="cal-minute"
+                  type="number"
+                  min={0}
+                  max={59}
+                  placeholder="0"
+                  value={calendarInterval.minute ?? ""}
+                  onChange={(e) =>
+                    setCalendarInterval({
+                      ...calendarInterval,
+                      minute: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="cal-weekday">
@@ -434,7 +489,15 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
                   Next runs ({Intl.DateTimeFormat().resolvedOptions().timeZone})
                 </p>
                 {(() => {
-                  const occurrences = getNextOccurrences(calendarInterval, 3)
+                  const intervals = hourMode === "range"
+                    ? expandHourRange(calendarInterval, hourRange.from, hourRange.to)
+                    : [calendarInterval]
+                  if (intervals.length === 0) {
+                    return <p className="text-xs text-destructive">Invalid hour range</p>
+                  }
+                  const occurrences = intervals.length > 1
+                    ? getNextOccurrencesMulti(intervals, 3)
+                    : getNextOccurrences(intervals[0], 3)
                   if (occurrences.length === 0) {
                     return <p className="text-xs text-muted-foreground">No upcoming runs found</p>
                   }

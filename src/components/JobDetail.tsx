@@ -12,32 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LogViewer } from "@/components/LogViewer"
 import type { LaunchdJob } from "@/types"
 import { getJobDetail, revealInFinder } from "@/lib/invoke"
-import type { CalendarInterval } from "@/types"
 import { FolderOpen } from "lucide-react"
-
-const weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-
-function formatCalendarInterval(ci: CalendarInterval): string {
-  const parts: string[] = []
-
-  // When
-  if (ci.weekday !== null && ci.weekday !== undefined) {
-    parts.push(`Every ${weekdayNames[ci.weekday]}`)
-  } else if (ci.day !== null && ci.day !== undefined) {
-    parts.push(`Day ${ci.day} of each month`)
-  } else if (ci.month !== null && ci.month !== undefined) {
-    parts.push(`Month ${ci.month}`)
-  } else {
-    parts.push("Every day")
-  }
-
-  // Time
-  const hour = ci.hour ?? 0
-  const minute = ci.minute ?? 0
-  parts.push(`at ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`)
-
-  return parts.join(" ")
-}
+import { formatCalendarIntervals } from "@/lib/calendar-utils"
 
 type JobDetailProps = {
   plistPath: string | null
@@ -190,11 +166,9 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                     <>
                       <Separator />
                       <h4 className="text-sm font-medium pt-2">Schedule</h4>
-                      {job.plist.start_calendar_interval.map((interval, i) => (
-                        <div key={i} className="text-sm py-0.5">
-                          {formatCalendarInterval(interval)}
-                        </div>
-                      ))}
+                      <div className="text-sm py-0.5">
+                        {formatCalendarIntervals(job.plist.start_calendar_interval)}
+                      </div>
                     </>
                   )}
               </TabsContent>
