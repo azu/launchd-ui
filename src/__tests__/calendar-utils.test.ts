@@ -224,6 +224,16 @@ describe("formatCalendarIntervals", () => {
     expect(result).toBe("Every Monday at :30 (9:00–17:00)")
   })
 
+  it("formats hour range with month", () => {
+    const intervals: CalendarInterval[] = expandHourRange(
+      { minute: 0, hour: null, day: null, weekday: null, month: 3 },
+      9,
+      17
+    )
+    const result = formatCalendarIntervals(intervals)
+    expect(result).toBe("Month 3 at :00 (9:00–17:00)")
+  })
+
   it("formats single interval normally", () => {
     const intervals: CalendarInterval[] = [
       { minute: 0, hour: 9, day: null, weekday: null, month: null },

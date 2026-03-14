@@ -132,6 +132,8 @@ export function formatCalendarIntervals(intervals: CalendarInterval[]): string {
       parts.push(`Every ${weekdayLabels[range.base.weekday]}`)
     } else if (range.base.day !== null && range.base.day !== undefined) {
       parts.push(`Day ${range.base.day} of each month`)
+    } else if (range.base.month !== null && range.base.month !== undefined) {
+      parts.push(`Month ${range.base.month}`)
     } else {
       parts.push("Every day")
     }
