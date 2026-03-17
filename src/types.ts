@@ -31,6 +31,7 @@ export type PlistConfig = {
   working_directory: string | null
   environment_variables: Record<string, string> | null
   disabled: boolean | null
+  wake_system: boolean | null
   raw_xml: string
 }
 

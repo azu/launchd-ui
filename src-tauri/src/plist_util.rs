@@ -146,6 +146,7 @@ pub fn parse_plist(path: &str) -> Result<PlistConfig, AppError> {
         working_directory: extract_string(dict, "WorkingDirectory"),
         environment_variables: extract_env_vars(dict),
         disabled: extract_bool(dict, "Disabled"),
+        wake_system: extract_bool(dict, "WakeSystem"),
         raw_xml,
     })
 }
@@ -256,6 +257,10 @@ pub fn write_plist(path: &str, config: &PlistConfig) -> Result<(), AppError> {
         dict.insert("Disabled".to_string(), Value::Boolean(disabled));
     }
 
+    if let Some(wake_system) = config.wake_system {
+        dict.insert("WakeSystem".to_string(), Value::Boolean(wake_system));
+    }
+
     let value = Value::Dictionary(dict);
     value
         .to_file_xml(path)
@@ -356,6 +361,7 @@ mod tests {
             working_directory: Some("/tmp".to_string()),
             environment_variables: Some(HashMap::from([("FOO".to_string(), "bar".to_string())])),
             disabled: None,
+            wake_system: None,
             raw_xml: String::new(),
         };
 

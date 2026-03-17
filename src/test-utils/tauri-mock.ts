@@ -13,6 +13,7 @@ const defaultPlistConfig: PlistConfig = {
   working_directory: null,
   environment_variables: null,
   disabled: null,
+  wake_system: null,
   raw_xml: "",
 }
 

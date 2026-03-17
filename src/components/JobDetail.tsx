@@ -141,6 +141,9 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                   />
                   <DetailRow label="Stdout" value={job.plist.standard_out_path} />
                   <DetailRow label="Stderr" value={job.plist.standard_error_path} />
+                  {job.plist.wake_system && (
+                    <DetailRow label="Wake System" value="true" />
+                  )}
                   {job.plist.disabled && (
                     <DetailRow label="Disabled" value="true" />
                   )}

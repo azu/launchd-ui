@@ -80,6 +80,7 @@ function emptyConfig(): PlistConfig {
     working_directory: null,
     environment_variables: null,
     disabled: false,
+    wake_system: false,
     raw_xml: "",
   }
 }
@@ -171,6 +172,7 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
           ? expandHourRange(calendarInterval, hourRange.from, hourRange.to)
           : [calendarInterval]
         : null,
+      wake_system: scheduleType === "calendar" ? (config.wake_system || null) : null,
       standard_out_path: config.standard_out_path?.trim() || null,
       standard_error_path: config.standard_error_path?.trim() || null,
       working_directory: config.working_directory?.trim() || null,
@@ -483,6 +485,26 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
                     })
                   }
                 />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="wake-system">Wake System</Label>
+                <Select
+                  value={config.wake_system ? "true" : "false"}
+                  onValueChange={(v) =>
+                    setConfig({ ...config, wake_system: v === "true" })
+                  }
+                >
+                  <SelectTrigger id="wake-system">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Yes</SelectItem>
+                    <SelectItem value="false">No</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Wake the system from sleep to run this agent at the scheduled time.
+                </p>
               </div>
               <div className="rounded-md border bg-muted/30 p-3">
                 <p className="text-xs font-medium text-muted-foreground mb-1.5">

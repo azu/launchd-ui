@@ -49,6 +49,7 @@ pub struct PlistConfig {
     pub working_directory: Option<String>,
     pub environment_variables: Option<HashMap<String, String>>,
     pub disabled: Option<bool>,
+    pub wake_system: Option<bool>,
     pub raw_xml: String,
 }
 
