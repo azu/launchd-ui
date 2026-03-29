@@ -25,6 +25,7 @@ const fakeJobs: JobListEntry[] = [
     plist_path: "/Users/test/Library/LaunchAgents/com.example.running-agent.plist",
     source: "UserAgent",
     status: "Running",
+    last_run_at: String(Date.now()),
   },
   {
     label: "com.example.stopped-agent",
@@ -33,6 +34,7 @@ const fakeJobs: JobListEntry[] = [
     plist_path: "/Users/test/Library/LaunchAgents/com.example.stopped-agent.plist",
     source: "UserAgent",
     status: "Unloaded",
+    last_run_at: null,
   },
   {
     label: "com.apple.system-agent",
@@ -41,6 +43,7 @@ const fakeJobs: JobListEntry[] = [
     plist_path: "/Library/LaunchAgents/com.apple.system-agent.plist",
     source: "SystemAgent",
     status: "Running",
+    last_run_at: String(Date.now() - 3600000),
   },
 ]
 
@@ -52,6 +55,7 @@ const fakeJobDetails: Record<string, LaunchdJob> = {
     status: "Running",
     pid: 1234,
     last_exit_code: 0,
+    last_run_at: String(Date.now()),
     plist: {
       ...defaultPlistConfig,
       label: "com.example.running-agent",

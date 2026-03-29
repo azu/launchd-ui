@@ -78,6 +78,11 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                   Exit: {job.last_exit_code}
                 </span>
               )}
+              {job.last_run_at && (
+                <span className="text-xs text-muted-foreground">
+                  Last run: {new Date(Number(job.last_run_at)).toLocaleString()}
+                </span>
+              )}
             </div>
 
             <div className="flex gap-2">
