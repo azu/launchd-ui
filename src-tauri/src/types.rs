@@ -24,6 +24,7 @@ pub struct JobListEntry {
     pub plist_path: String,
     pub source: JobSource,
     pub status: JobStatus,
+    pub last_run_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +63,7 @@ pub struct LaunchdJob {
     pub pid: Option<u32>,
     pub last_exit_code: Option<i32>,
     pub plist: PlistConfig,
+    pub last_run_at: Option<String>,
 }
 
 #[cfg(test)]
@@ -94,6 +96,7 @@ mod tests {
             plist_path: "/Users/test/Library/LaunchAgents/com.example.test.plist".to_string(),
             source: JobSource::UserAgent,
             status: JobStatus::Running,
+            last_run_at: None,
         };
         let json = serde_json::to_string(&entry).unwrap();
         let deserialized: JobListEntry = serde_json::from_str(&json).unwrap();

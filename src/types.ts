@@ -8,6 +8,7 @@ export type JobListEntry = {
   plist_path: string
   source: JobSource
   status: JobStatus
+  last_run_at: string | null
 }
 
 export type CalendarInterval = {
@@ -43,4 +44,5 @@ export type LaunchdJob = {
   pid: number | null
   last_exit_code: number | null
   plist: PlistConfig
+  last_run_at: string | null
 }

@@ -5,6 +5,24 @@ use crate::types::PlistConfig;
 use crate::types::{JobListEntry, JobStatus, LaunchdJob};
 use std::collections::HashMap;
 
+fn get_last_run_at(config: &PlistConfig) -> Option<String> {
+    let paths = [&config.standard_out_path, &config.standard_error_path];
+    let mut latest: Option<u64> = None;
+
+    for path in paths.into_iter().flatten() {
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if let Ok(modified) = metadata.modified() {
+                if let Ok(duration) = modified.duration_since(std::time::UNIX_EPOCH) {
+                    let millis = duration.as_secs() * 1000 + u64::from(duration.subsec_millis());
+                    latest = Some(latest.map_or(millis, |prev: u64| prev.max(millis)));
+                }
+            }
+        }
+    }
+
+    latest.map(|ms| ms.to_string())
+}
+
 fn ensure_user_agent(plist_path: &str) -> Result<(), AppError> {
     let home = dirs::home_dir().unwrap_or_default();
     let user_agents = home.join("Library/LaunchAgents");
@@ -43,6 +61,7 @@ pub async fn list_jobs() -> Result<Vec<JobListEntry>, AppError> {
             (JobStatus::Unloaded, None, None)
         };
 
+        let last_run_at = get_last_run_at(&config);
         entries.push(JobListEntry {
             label: config.label,
             pid,
@@ -50,6 +69,7 @@ pub async fn list_jobs() -> Result<Vec<JobListEntry>, AppError> {
             plist_path: path,
             source,
             status,
+            last_run_at,
         });
     }
 
@@ -87,6 +107,7 @@ pub async fn get_job_detail(plist_path: String) -> Result<LaunchdJob, AppError> 
         crate::types::JobSource::UserAgent
     };
 
+    let last_run_at = get_last_run_at(&plist);
     Ok(LaunchdJob {
         label: plist.label.clone(),
         plist_path,
@@ -95,6 +116,7 @@ pub async fn get_job_detail(plist_path: String) -> Result<LaunchdJob, AppError> 
         pid,
         last_exit_code: exit_code,
         plist,
+        last_run_at,
     })
 }
 

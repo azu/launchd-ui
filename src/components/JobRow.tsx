@@ -20,6 +20,22 @@ import {
   Zap,
 } from "lucide-react"
 
+function formatRelativeTime(epochMillis: string): string {
+  const ms = Number(epochMillis)
+  if (isNaN(ms)) return "—"
+  const diff = Date.now() - ms
+  const seconds = Math.floor(diff / 1000)
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  const date = new Date(ms)
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
 type JobRowProps = {
   job: JobListEntry
   onStart: (job: JobListEntry) => void
@@ -97,6 +113,9 @@ export function JobRow({
       </TableCell>
       <TableCell className="text-muted-foreground tabular-nums">
         {job.pid ?? "—"}
+      </TableCell>
+      <TableCell className="text-muted-foreground text-xs tabular-nums">
+        {job.last_run_at ? formatRelativeTime(job.last_run_at) : "—"}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
