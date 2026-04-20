@@ -11,6 +11,7 @@ const mockJobs: JobListEntry[] = [
     plist_path: "/Users/test/Library/LaunchAgents/com.example.running.plist",
     source: "UserAgent",
     status: "Running",
+    last_run_at: String(Date.now()),
   },
   {
     label: "com.example.stopped",
@@ -19,6 +20,7 @@ const mockJobs: JobListEntry[] = [
     plist_path: "/Users/test/Library/LaunchAgents/com.example.stopped.plist",
     source: "UserAgent",
     status: "Unloaded",
+    last_run_at: null,
   },
 ]
 
