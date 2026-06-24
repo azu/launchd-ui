@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::types::{CalendarInterval, JobSource, PlistConfig};
+use crate::types::{CalendarInterval, JobSource, PlistConfig, ResourceLimits};
 use plist::Value;
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -54,6 +54,19 @@ fn extract_bool(dict: &plist::Dictionary, key: &str) -> Option<bool> {
 
 fn extract_u64(dict: &plist::Dictionary, key: &str) -> Option<u64> {
     dict.get(key).and_then(|v| v.as_unsigned_integer())
+}
+
+fn extract_i64(dict: &plist::Dictionary, key: &str) -> Option<i64> {
+    dict.get(key).and_then(|v| v.as_signed_integer())
+}
+
+fn extract_integer_or_string(dict: &plist::Dictionary, key: &str) -> Option<String> {
+    dict.get(key).and_then(|v| {
+        v.as_string()
+            .map(String::from)
+            .or_else(|| v.as_unsigned_integer().map(|n| n.to_string()))
+            .or_else(|| v.as_signed_integer().map(|n| n.to_string()))
+    })
 }
 
 fn extract_string_array(dict: &plist::Dictionary, key: &str) -> Option<Vec<String>> {
@@ -117,6 +130,242 @@ fn extract_env_vars(dict: &plist::Dictionary) -> Option<HashMap<String, String>>
         })
 }
 
+fn extract_resource_limits(dict: &plist::Dictionary, key: &str) -> Option<ResourceLimits> {
+    let d = dict.get(key)?.as_dictionary()?;
+    let limits = ResourceLimits {
+        core: extract_u64(d, "Core"),
+        cpu: extract_u64(d, "CPU"),
+        data: extract_u64(d, "Data"),
+        file_size: extract_u64(d, "FileSize"),
+        memory_lock: extract_u64(d, "MemoryLock"),
+        number_of_files: extract_u64(d, "NumberOfFiles"),
+        number_of_processes: extract_u64(d, "NumberOfProcesses"),
+        resident_set_size: extract_u64(d, "ResidentSetSize"),
+        stack: extract_u64(d, "Stack"),
+    };
+    if limits.core.is_none()
+        && limits.cpu.is_none()
+        && limits.data.is_none()
+        && limits.file_size.is_none()
+        && limits.memory_lock.is_none()
+        && limits.number_of_files.is_none()
+        && limits.number_of_processes.is_none()
+        && limits.resident_set_size.is_none()
+        && limits.stack.is_none()
+    {
+        None
+    } else {
+        Some(limits)
+    }
+}
+
+fn resource_limits_to_value(limits: &ResourceLimits) -> Option<Value> {
+    let mut d = plist::Dictionary::new();
+    let mut insert = |key: &str, value: Option<u64>| {
+        if let Some(value) = value {
+            d.insert(key.to_string(), Value::Integer(value.into()));
+        }
+    };
+
+    insert("Core", limits.core);
+    insert("CPU", limits.cpu);
+    insert("Data", limits.data);
+    insert("FileSize", limits.file_size);
+    insert("MemoryLock", limits.memory_lock);
+    insert("NumberOfFiles", limits.number_of_files);
+    insert("NumberOfProcesses", limits.number_of_processes);
+    insert("ResidentSetSize", limits.resident_set_size);
+    insert("Stack", limits.stack);
+
+    if d.is_empty() {
+        None
+    } else {
+        Some(Value::Dictionary(d))
+    }
+}
+
+fn is_integer(value: &Value) -> bool {
+    value.as_unsigned_integer().is_some() || value.as_signed_integer().is_some()
+}
+
+fn is_string_array(value: &Value) -> bool {
+    value
+        .as_array()
+        .is_some_and(|values| values.iter().all(|value| value.as_string().is_some()))
+}
+
+fn validate_type(
+    dict: &plist::Dictionary,
+    key: &str,
+    expected: &str,
+    is_valid: impl Fn(&Value) -> bool,
+) -> Result<(), AppError> {
+    if let Some(value) = dict.get(key) {
+        if !is_valid(value) {
+            return Err(AppError::Plist(format!(
+                "{key} must be {expected} for launchd.plist"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_resource_limits(dict: &plist::Dictionary, key: &str) -> Result<(), AppError> {
+    let Some(value) = dict.get(key) else {
+        return Ok(());
+    };
+    let Some(limits) = value.as_dictionary() else {
+        return Err(AppError::Plist(format!(
+            "{key} must be a dictionary for launchd.plist"
+        )));
+    };
+
+    for limit_key in [
+        "Core",
+        "CPU",
+        "Data",
+        "FileSize",
+        "MemoryLock",
+        "NumberOfFiles",
+        "NumberOfProcesses",
+        "ResidentSetSize",
+        "Stack",
+    ] {
+        validate_type(limits, limit_key, "an integer", is_integer)?;
+    }
+    Ok(())
+}
+
+fn validate_calendar_interval(value: &Value) -> bool {
+    let validate_dict = |dict: &plist::Dictionary| {
+        ["Minute", "Hour", "Day", "Weekday", "Month"]
+            .iter()
+            .all(|key| dict.get(key).is_none_or(is_integer))
+    };
+
+    if let Some(dict) = value.as_dictionary() {
+        return validate_dict(dict);
+    }
+
+    value.as_array().is_some_and(|values| {
+        values
+            .iter()
+            .all(|value| value.as_dictionary().is_some_and(validate_dict))
+    })
+}
+
+fn validate_launchd_plist_schema(value: &Value) -> Result<(), AppError> {
+    let dict = value
+        .as_dictionary()
+        .ok_or_else(|| AppError::Plist("launchd plist must be a dictionary".to_string()))?;
+
+    for key in [
+        "Label",
+        "UserName",
+        "GroupName",
+        "LimitLoadToSessionType",
+        "Program",
+        "BundleProgram",
+        "RootDirectory",
+        "WorkingDirectory",
+        "Umask",
+        "StandardInPath",
+        "StandardOutPath",
+        "StandardErrorPath",
+        "ProcessType",
+        "HopefullyExitsLast",
+        "HopefullyExitsFirst",
+    ] {
+        validate_type(dict, key, "a string", |value| value.as_string().is_some())?;
+    }
+
+    for key in [
+        "Disabled",
+        "EnableGlobbing",
+        "EnableTransactions",
+        "EnablePressuredExit",
+        "OnDemand",
+        "ServiceIPC",
+        "RunAtLoad",
+        "InitGroups",
+        "StartOnMount",
+        "Debug",
+        "WaitForDebugger",
+        "AbandonProcessGroup",
+        "LowPriorityIO",
+        "LowPriorityBackgroundIO",
+        "LaunchOnlyOnce",
+        "SessionCreate",
+        "LegacyTimers",
+    ] {
+        validate_type(dict, key, "a boolean", |value| value.as_boolean().is_some())?;
+    }
+
+    for key in [
+        "TimeOut",
+        "ExitTimeOut",
+        "ThrottleInterval",
+        "StartInterval",
+        "Nice",
+    ] {
+        validate_type(dict, key, "an integer", is_integer)?;
+    }
+
+    for key in [
+        "LimitLoadToHosts",
+        "LimitLoadFromHosts",
+        "ProgramArguments",
+        "WatchPaths",
+        "QueueDirectories",
+    ] {
+        validate_type(dict, key, "an array of strings", is_string_array)?;
+    }
+
+    validate_type(
+        dict,
+        "EnvironmentVariables",
+        "a dictionary of strings",
+        |value| {
+            value
+                .as_dictionary()
+                .is_some_and(|env| env.values().all(|value| value.as_string().is_some()))
+        },
+    )?;
+    validate_type(dict, "KeepAlive", "a boolean or dictionary", |value| {
+        value.as_boolean().is_some() || value.as_dictionary().is_some()
+    })?;
+    validate_type(
+        dict,
+        "StartCalendarInterval",
+        "a dictionary or array of dictionaries with integer date fields",
+        validate_calendar_interval,
+    )?;
+    validate_type(
+        dict,
+        "AssociatedBundleIdentifiers",
+        "a string or array of strings",
+        |value| value.as_string().is_some() || is_string_array(value),
+    )?;
+
+    for key in [
+        "inetdCompatibility",
+        "LimitLoadToHardware",
+        "LimitLoadFromHardware",
+        "MachServices",
+        "Sockets",
+        "LaunchEvents",
+    ] {
+        validate_type(dict, key, "a dictionary", |value| {
+            value.as_dictionary().is_some()
+        })?;
+    }
+
+    validate_resource_limits(dict, "SoftResourceLimits")?;
+    validate_resource_limits(dict, "HardResourceLimits")?;
+
+    Ok(())
+}
+
 pub fn parse_plist(path: &str) -> Result<PlistConfig, AppError> {
     let value = Value::from_file(path).map_err(|e| AppError::Plist(format!("{path}: {e}")))?;
     let dict = value
@@ -147,6 +396,17 @@ pub fn parse_plist(path: &str) -> Result<PlistConfig, AppError> {
         environment_variables: extract_env_vars(dict),
         disabled: extract_bool(dict, "Disabled"),
         wake_system: extract_bool(dict, "WakeSystem"),
+        root_directory: extract_string(dict, "RootDirectory"),
+        umask: extract_integer_or_string(dict, "Umask"),
+        throttle_interval: extract_u64(dict, "ThrottleInterval"),
+        start_on_mount: extract_bool(dict, "StartOnMount"),
+        watch_paths: extract_string_array(dict, "WatchPaths"),
+        queue_directories: extract_string_array(dict, "QueueDirectories"),
+        process_type: extract_string(dict, "ProcessType"),
+        nice: extract_i64(dict, "Nice"),
+        abandon_process_group: extract_bool(dict, "AbandonProcessGroup"),
+        soft_resource_limits: extract_resource_limits(dict, "SoftResourceLimits"),
+        hard_resource_limits: extract_resource_limits(dict, "HardResourceLimits"),
         raw_xml,
     })
 }
@@ -171,7 +431,43 @@ pub fn read_raw_plist(path: &str) -> Result<String, AppError> {
 }
 
 pub fn write_plist(path: &str, config: &PlistConfig) -> Result<(), AppError> {
-    let mut dict = plist::Dictionary::new();
+    let mut dict = if config.raw_xml.trim().is_empty() {
+        plist::Dictionary::new()
+    } else {
+        Value::from_reader(Cursor::new(config.raw_xml.as_bytes()))
+            .ok()
+            .and_then(|value| value.into_dictionary())
+            .unwrap_or_default()
+    };
+
+    for key in [
+        "Label",
+        "Program",
+        "ProgramArguments",
+        "RunAtLoad",
+        "KeepAlive",
+        "StartInterval",
+        "StartCalendarInterval",
+        "StandardOutPath",
+        "StandardErrorPath",
+        "WorkingDirectory",
+        "EnvironmentVariables",
+        "Disabled",
+        "WakeSystem",
+        "RootDirectory",
+        "Umask",
+        "ThrottleInterval",
+        "StartOnMount",
+        "WatchPaths",
+        "QueueDirectories",
+        "ProcessType",
+        "Nice",
+        "AbandonProcessGroup",
+        "SoftResourceLimits",
+        "HardResourceLimits",
+    ] {
+        dict.remove(key);
+    }
 
     dict.insert("Label".to_string(), Value::String(config.label.clone()));
 
@@ -261,6 +557,82 @@ pub fn write_plist(path: &str, config: &PlistConfig) -> Result<(), AppError> {
         dict.insert("WakeSystem".to_string(), Value::Boolean(wake_system));
     }
 
+    if let Some(ref root_directory) = config.root_directory {
+        dict.insert(
+            "RootDirectory".to_string(),
+            Value::String(root_directory.clone()),
+        );
+    }
+
+    if let Some(ref umask) = config.umask {
+        dict.insert("Umask".to_string(), Value::String(umask.clone()));
+    }
+
+    if let Some(throttle_interval) = config.throttle_interval {
+        dict.insert(
+            "ThrottleInterval".to_string(),
+            Value::Integer(throttle_interval.into()),
+        );
+    }
+
+    if let Some(start_on_mount) = config.start_on_mount {
+        dict.insert("StartOnMount".to_string(), Value::Boolean(start_on_mount));
+    }
+
+    if let Some(ref watch_paths) = config.watch_paths {
+        dict.insert(
+            "WatchPaths".to_string(),
+            Value::Array(
+                watch_paths
+                    .iter()
+                    .map(|path| Value::String(path.clone()))
+                    .collect(),
+            ),
+        );
+    }
+
+    if let Some(ref queue_directories) = config.queue_directories {
+        dict.insert(
+            "QueueDirectories".to_string(),
+            Value::Array(
+                queue_directories
+                    .iter()
+                    .map(|path| Value::String(path.clone()))
+                    .collect(),
+            ),
+        );
+    }
+
+    if let Some(ref process_type) = config.process_type {
+        dict.insert(
+            "ProcessType".to_string(),
+            Value::String(process_type.clone()),
+        );
+    }
+
+    if let Some(nice) = config.nice {
+        dict.insert("Nice".to_string(), Value::Integer(nice.into()));
+    }
+
+    if let Some(abandon_process_group) = config.abandon_process_group {
+        dict.insert(
+            "AbandonProcessGroup".to_string(),
+            Value::Boolean(abandon_process_group),
+        );
+    }
+
+    if let Some(ref limits) = config.soft_resource_limits {
+        if let Some(value) = resource_limits_to_value(limits) {
+            dict.insert("SoftResourceLimits".to_string(), value);
+        }
+    }
+
+    if let Some(ref limits) = config.hard_resource_limits {
+        if let Some(value) = resource_limits_to_value(limits) {
+            dict.insert("HardResourceLimits".to_string(), value);
+        }
+    }
+
     let value = Value::Dictionary(dict);
     value
         .to_file_xml(path)
@@ -270,11 +642,49 @@ pub fn write_plist(path: &str, config: &PlistConfig) -> Result<(), AppError> {
 }
 
 pub fn write_raw_plist(path: &str, xml: &str) -> Result<(), AppError> {
-    // Validate by parsing
-    Value::from_reader(Cursor::new(xml.as_bytes()))
-        .map_err(|e| AppError::Plist(format!("invalid plist XML: {e}")))?;
+    validate_raw_plist(xml)?;
     std::fs::write(path, xml)?;
     Ok(())
+}
+
+pub fn validate_raw_plist(xml: &str) -> Result<(), AppError> {
+    let value = Value::from_reader(Cursor::new(xml.as_bytes()))
+        .map_err(|e| AppError::Plist(format!("invalid plist XML: {e}")))?;
+    validate_launchd_plist_schema(&value)?;
+
+    let mut child = std::process::Command::new("plutil")
+        .args(["-lint", "-"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| AppError::Plist(format!("failed to run plutil: {e}")))?;
+
+    if let Some(stdin) = child.stdin.as_mut() {
+        use std::io::Write;
+        stdin
+            .write_all(xml.as_bytes())
+            .map_err(|e| AppError::Plist(format!("failed to send plist to plutil: {e}")))?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .map_err(|e| AppError::Plist(format!("failed to read plutil result: {e}")))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let message = String::from_utf8_lossy(&output.stderr);
+    let fallback = String::from_utf8_lossy(&output.stdout);
+    Err(AppError::Plist(format!(
+        "plutil validation failed: {}",
+        if message.trim().is_empty() {
+            fallback.trim()
+        } else {
+            message.trim()
+        }
+    )))
 }
 
 #[cfg(test)]
@@ -362,6 +772,23 @@ mod tests {
             environment_variables: Some(HashMap::from([("FOO".to_string(), "bar".to_string())])),
             disabled: None,
             wake_system: None,
+            root_directory: None,
+            umask: Some("022".to_string()),
+            throttle_interval: Some(30),
+            start_on_mount: Some(false),
+            watch_paths: Some(vec!["/tmp/input.txt".to_string()]),
+            queue_directories: Some(vec!["/tmp/queue".to_string()]),
+            process_type: Some("Background".to_string()),
+            nice: Some(5),
+            abandon_process_group: Some(false),
+            soft_resource_limits: Some(ResourceLimits {
+                number_of_files: Some(65_536),
+                ..ResourceLimits::default()
+            }),
+            hard_resource_limits: Some(ResourceLimits {
+                number_of_files: Some(65_536),
+                ..ResourceLimits::default()
+            }),
             raw_xml: String::new(),
         };
 
@@ -381,6 +808,23 @@ mod tests {
         assert_eq!(
             parsed.environment_variables,
             Some(HashMap::from([("FOO".to_string(), "bar".to_string())]))
+        );
+        assert_eq!(parsed.umask, Some("022".to_string()));
+        assert_eq!(parsed.throttle_interval, Some(30));
+        assert_eq!(parsed.watch_paths, Some(vec!["/tmp/input.txt".to_string()]));
+        assert_eq!(
+            parsed.queue_directories,
+            Some(vec!["/tmp/queue".to_string()])
+        );
+        assert_eq!(parsed.process_type, Some("Background".to_string()));
+        assert_eq!(parsed.nice, Some(5));
+        assert_eq!(
+            parsed.soft_resource_limits.unwrap().number_of_files,
+            Some(65_536)
+        );
+        assert_eq!(
+            parsed.hard_resource_limits.unwrap().number_of_files,
+            Some(65_536)
         );
     }
 
@@ -408,5 +852,76 @@ mod tests {
         let path = file.path().to_str().unwrap();
         let result = write_raw_plist(path, invalid);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_raw_plist_rejects_wrong_launchd_type() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <array>
+        <string>com.example.invalid</string>
+    </array>
+</dict>
+</plist>"#;
+
+        let result = validate_raw_plist(xml);
+        assert!(result.is_err());
+        assert!(format!("{}", result.unwrap_err()).contains("Label must be a string"));
+    }
+
+    #[test]
+    fn test_write_plist_preserves_unknown_raw_fields() {
+        let raw_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.example.old</string>
+    <key>MachServices</key>
+    <dict>
+        <key>com.example.service</key>
+        <true/>
+    </dict>
+</dict>
+</plist>"#;
+        let config = PlistConfig {
+            label: "com.example.updated".to_string(),
+            program: Some("/usr/bin/true".to_string()),
+            program_arguments: Some(vec!["/usr/bin/true".to_string()]),
+            run_at_load: None,
+            keep_alive: None,
+            start_interval: None,
+            start_calendar_interval: None,
+            standard_out_path: None,
+            standard_error_path: None,
+            working_directory: None,
+            environment_variables: None,
+            disabled: None,
+            wake_system: None,
+            root_directory: None,
+            umask: None,
+            throttle_interval: None,
+            start_on_mount: None,
+            watch_paths: None,
+            queue_directories: None,
+            process_type: None,
+            nice: None,
+            abandon_process_group: None,
+            soft_resource_limits: None,
+            hard_resource_limits: None,
+            raw_xml: raw_xml.to_string(),
+        };
+        let file = NamedTempFile::with_suffix(".plist").unwrap();
+        let path = file.path().to_str().unwrap();
+
+        write_plist(path, &config).unwrap();
+        let content = std::fs::read_to_string(path).unwrap();
+
+        assert!(content.contains("com.example.updated"));
+        assert!(content.contains("MachServices"));
+        assert!(content.contains("com.example.service"));
     }
 }

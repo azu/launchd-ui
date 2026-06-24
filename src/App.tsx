@@ -12,6 +12,7 @@ import {
   kickstartJob,
   deleteJob,
   saveJob,
+  saveRawPlist,
   createJob,
   revealInFinder,
 } from "@/lib/invoke"
@@ -77,6 +78,14 @@ function App() {
       } else {
         await createJob(config.label, config)
       }
+      await refresh()
+    },
+    [refresh]
+  )
+
+  const handleSaveRaw = useCallback(
+    async (plistPath: string, xml: string) => {
+      await saveRawPlist(plistPath, xml)
       await refresh()
     },
     [refresh]
@@ -165,6 +174,7 @@ function App() {
           setEditingJob(null)
         }}
         onSave={handleSave}
+        onSaveRaw={handleSaveRaw}
         editingJob={editingJob}
       />
 

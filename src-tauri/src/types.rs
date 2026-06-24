@@ -51,7 +51,31 @@ pub struct PlistConfig {
     pub environment_variables: Option<HashMap<String, String>>,
     pub disabled: Option<bool>,
     pub wake_system: Option<bool>,
+    pub root_directory: Option<String>,
+    pub umask: Option<String>,
+    pub throttle_interval: Option<u64>,
+    pub start_on_mount: Option<bool>,
+    pub watch_paths: Option<Vec<String>>,
+    pub queue_directories: Option<Vec<String>>,
+    pub process_type: Option<String>,
+    pub nice: Option<i64>,
+    pub abandon_process_group: Option<bool>,
+    pub soft_resource_limits: Option<ResourceLimits>,
+    pub hard_resource_limits: Option<ResourceLimits>,
     pub raw_xml: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ResourceLimits {
+    pub core: Option<u64>,
+    pub cpu: Option<u64>,
+    pub data: Option<u64>,
+    pub file_size: Option<u64>,
+    pub memory_lock: Option<u64>,
+    pub number_of_files: Option<u64>,
+    pub number_of_processes: Option<u64>,
+    pub resident_set_size: Option<u64>,
+    pub stack: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +88,14 @@ pub struct LaunchdJob {
     pub last_exit_code: Option<i32>,
     pub plist: PlistConfig,
     pub last_run_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProcessStats {
+    pub pid: u32,
+    pub cpu_percent: f32,
+    pub memory_bytes: u64,
+    pub timestamp: u64,
 }
 
 #[cfg(test)]

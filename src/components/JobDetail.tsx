@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CommandPanel } from "@/components/CommandPanel"
 import { LogViewer } from "@/components/LogViewer"
-import type { LaunchdJob } from "@/types"
+import { ResourceMonitor } from "@/components/ResourceMonitor"
+import type { LaunchdJob, ResourceLimits } from "@/types"
 import { getJobDetail, revealInFinder } from "@/lib/invoke"
 import { FolderOpen } from "lucide-react"
 import { formatCalendarIntervals } from "@/lib/calendar-utils"
@@ -32,9 +34,36 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   )
 }
 
+function formatList(values: string[] | null | undefined): string | undefined {
+  return values && values.length > 0 ? values.join("\n") : undefined
+}
+
+function formatResourceLimits(limits: ResourceLimits | null | undefined): string | undefined {
+  if (!limits) return undefined
+
+  const labels: Record<keyof ResourceLimits, string> = {
+    core: "Core",
+    cpu: "CPU",
+    data: "Data",
+    file_size: "FileSize",
+    memory_lock: "MemoryLock",
+    number_of_files: "NumberOfFiles",
+    number_of_processes: "NumberOfProcesses",
+    resident_set_size: "ResidentSetSize",
+    stack: "Stack",
+  }
+
+  const rows = Object.entries(limits)
+    .filter(([, value]) => value !== null)
+    .map(([key, value]) => `${labels[key as keyof ResourceLimits]}=${value}`)
+
+  return rows.length > 0 ? rows.join("\n") : undefined
+}
+
 export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) {
   const [job, setJob] = useState<LaunchdJob | null>(null)
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState("config")
 
   useEffect(() => {
     if (!plistPath || !open) return
@@ -46,7 +75,15 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
   }, [plistPath, open])
 
   return (
-    <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Sheet
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setActiveTab("config")
+          onClose()
+        }
+      }}
+    >
       <SheetContent className="w-[600px] sm:w-[640px] sm:max-w-[640px] overflow-y-auto p-0">
         <SheetHeader>
           <SheetTitle className="text-base font-semibold">
@@ -103,10 +140,12 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
 
             <Separator />
 
-            <Tabs defaultValue="config">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="config">Configuration</TabsTrigger>
                 <TabsTrigger value="logs">Logs</TabsTrigger>
+                <TabsTrigger value="monitor">Monitor</TabsTrigger>
+                <TabsTrigger value="commands">Commands</TabsTrigger>
               </TabsList>
 
               <TabsContent value="config" className="space-y-1">
@@ -152,6 +191,44 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                   {job.plist.disabled && (
                     <DetailRow label="Disabled" value="true" />
                   )}
+                  <DetailRow label="Root Dir" value={job.plist.root_directory} />
+                  <DetailRow label="Umask" value={job.plist.umask} />
+                  <DetailRow
+                    label="Throttle"
+                    value={
+                      job.plist.throttle_interval
+                        ? `${job.plist.throttle_interval}s`
+                        : undefined
+                    }
+                  />
+                  {job.plist.start_on_mount && (
+                    <DetailRow label="Start On Mount" value="true" />
+                  )}
+                  <DetailRow label="Process Type" value={job.plist.process_type} />
+                  <DetailRow
+                    label="Nice"
+                    value={
+                      job.plist.nice !== null && job.plist.nice !== undefined
+                        ? String(job.plist.nice)
+                        : undefined
+                    }
+                  />
+                  {job.plist.abandon_process_group && (
+                    <DetailRow label="Abandon Group" value="true" />
+                  )}
+                  <DetailRow label="Watch Paths" value={formatList(job.plist.watch_paths)} />
+                  <DetailRow
+                    label="Queue Dirs"
+                    value={formatList(job.plist.queue_directories)}
+                  />
+                  <DetailRow
+                    label="Soft Limits"
+                    value={formatResourceLimits(job.plist.soft_resource_limits)}
+                  />
+                  <DetailRow
+                    label="Hard Limits"
+                    value={formatResourceLimits(job.plist.hard_resource_limits)}
+                  />
                 </dl>
                 {job.plist.environment_variables &&
                   Object.keys(job.plist.environment_variables).length > 0 && (
@@ -202,6 +279,17 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                       </div>
                     )}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="monitor">
+                <ResourceMonitor
+                  pid={job.pid ?? null}
+                  enabled={activeTab === "monitor"}
+                />
+              </TabsContent>
+
+              <TabsContent value="commands">
+                <CommandPanel job={job} />
               </TabsContent>
             </Tabs>
           </div>

@@ -1,8 +1,9 @@
 use crate::error::AppError;
 use crate::launchctl;
 use crate::plist_util;
+use crate::process_stats;
 use crate::types::PlistConfig;
-use crate::types::{JobListEntry, JobStatus, LaunchdJob};
+use crate::types::{JobListEntry, JobStatus, LaunchdJob, ProcessStats};
 use std::collections::HashMap;
 
 fn get_last_run_at(config: &PlistConfig) -> Option<String> {
@@ -200,6 +201,11 @@ pub async fn save_raw_plist(plist_path: String, xml: String) -> Result<(), AppEr
 }
 
 #[tauri::command]
+pub async fn validate_raw_plist(xml: String) -> Result<(), AppError> {
+    plist_util::validate_raw_plist(&xml)
+}
+
+#[tauri::command]
 pub async fn delete_job(plist_path: String, label: String) -> Result<(), AppError> {
     let _ = launchctl::bootout(&plist_path);
     let _ = launchctl::disable(&label);
@@ -289,4 +295,22 @@ pub async fn reveal_in_finder(path: String) -> Result<(), AppError> {
         .arg(&path)
         .spawn()?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_process_stats(pid: u32) -> Result<ProcessStats, AppError> {
+    let (cpu_percent, memory_bytes) = process_stats::get_process_stats(pid)
+        .ok_or_else(|| AppError::NotFound(format!("process not found: PID {pid}")))?;
+
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    Ok(ProcessStats {
+        pid,
+        cpu_percent,
+        memory_bytes,
+        timestamp,
+    })
 }

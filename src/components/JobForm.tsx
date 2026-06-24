@@ -16,8 +16,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { PlistConfig, LaunchdJob, CalendarInterval } from "@/types"
-import { getHomeDir } from "@/lib/invoke"
+import { ChevronDown, ChevronRight } from "lucide-react"
+import type {
+  CalendarInterval,
+  LaunchdJob,
+  PlistConfig,
+  ProcessType,
+  ResourceLimits,
+} from "@/types"
+import { getHomeDir, validateRawPlist } from "@/lib/invoke"
 import {
   detectHourRange,
   expandHourRange,
@@ -30,6 +37,7 @@ type JobFormProps = {
   open: boolean
   onClose: () => void
   onSave: (config: PlistConfig, plistPath?: string) => Promise<void>
+  onSaveRaw?: (plistPath: string, xml: string) => Promise<void>
   editingJob?: LaunchdJob | null
 }
 
@@ -66,6 +74,20 @@ function formatArguments(args: string[]): string {
     .join(" ")
 }
 
+function emptyResourceLimits(): ResourceLimits {
+  return {
+    core: null,
+    cpu: null,
+    data: null,
+    file_size: null,
+    memory_lock: null,
+    number_of_files: null,
+    number_of_processes: null,
+    resident_set_size: null,
+    stack: null,
+  }
+}
+
 function emptyConfig(): PlistConfig {
   return {
     label: "",
@@ -81,8 +103,63 @@ function emptyConfig(): PlistConfig {
     environment_variables: null,
     disabled: false,
     wake_system: false,
+    root_directory: null,
+    umask: null,
+    throttle_interval: null,
+    start_on_mount: false,
+    watch_paths: null,
+    queue_directories: null,
+    process_type: null,
+    nice: null,
+    abandon_process_group: false,
+    soft_resource_limits: null,
+    hard_resource_limits: null,
     raw_xml: "",
   }
+}
+
+function parseLines(input: string): string[] | null {
+  const lines = input
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+  return lines.length > 0 ? lines : null
+}
+
+function formatLines(values: string[] | null | undefined): string {
+  return values?.join("\n") ?? ""
+}
+
+function parseEnvironmentVariables(input: string): Record<string, string> | null {
+  const entries: [string, string][] = []
+  for (const line of input.split("\n")) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    const index = trimmed.indexOf("=")
+    if (index <= 0) continue
+    entries.push([trimmed.slice(0, index).trim(), trimmed.slice(index + 1)])
+  }
+  return entries.length > 0 ? Object.fromEntries(entries) : null
+}
+
+function formatEnvironmentVariables(values: Record<string, string> | null | undefined): string {
+  return Object.entries(values ?? {})
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n")
+}
+
+function normalizeResourceLimits(limits: ResourceLimits | null): ResourceLimits | null {
+  if (!limits) return null
+  return Object.values(limits).some((value) => value !== null) ? limits : null
+}
+
+function setLimitValue(
+  limits: ResourceLimits | null,
+  key: keyof ResourceLimits,
+  value: string,
+): ResourceLimits | null {
+  const next = { ...(limits ?? emptyResourceLimits()), [key]: value ? Number(value) : null }
+  return normalizeResourceLimits(next)
 }
 
 type ScheduleType = "none" | "interval" | "calendar"
@@ -107,7 +184,7 @@ function detectHourMode(config: PlistConfig): HourMode {
 
 const weekdayLabels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
+export function JobForm({ open, onClose, onSave, onSaveRaw, editingJob }: JobFormProps) {
   const [config, setConfig] = useState<PlistConfig>(
     editingJob?.plist ?? emptyConfig()
   )
@@ -116,6 +193,18 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
       ? formatArguments(editingJob.plist.program_arguments)
       : ""
   )
+  const [environmentText, setEnvironmentText] = useState(
+    formatEnvironmentVariables(editingJob?.plist.environment_variables)
+  )
+  const [watchPathsText, setWatchPathsText] = useState(
+    formatLines(editingJob?.plist.watch_paths)
+  )
+  const [queueDirectoriesText, setQueueDirectoriesText] = useState(
+    formatLines(editingJob?.plist.queue_directories)
+  )
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [rawXml, setRawXml] = useState(editingJob?.plist.raw_xml ?? "")
+  const [rawStatus, setRawStatus] = useState<string | null>(null)
   const initPlist = editingJob?.plist ?? emptyConfig()
   const [scheduleType, setScheduleType] = useState<ScheduleType>(
     detectScheduleType(initPlist)
@@ -176,11 +265,51 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
       standard_out_path: config.standard_out_path?.trim() || null,
       standard_error_path: config.standard_error_path?.trim() || null,
       working_directory: config.working_directory?.trim() || null,
+      environment_variables: parseEnvironmentVariables(environmentText),
+      root_directory: config.root_directory?.trim() || null,
+      umask: config.umask?.trim() || null,
+      throttle_interval: config.throttle_interval || null,
+      start_on_mount: config.start_on_mount || null,
+      watch_paths: parseLines(watchPathsText),
+      queue_directories: parseLines(queueDirectoriesText),
+      process_type: config.process_type,
+      nice: config.nice,
+      abandon_process_group: config.abandon_process_group || null,
+      soft_resource_limits: normalizeResourceLimits(config.soft_resource_limits),
+      hard_resource_limits: normalizeResourceLimits(config.hard_resource_limits),
     }
 
     setSaving(true)
     try {
       await onSave(finalConfig, editingJob?.plist_path)
+      onClose()
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleValidateRaw = async () => {
+    setError(null)
+    setRawStatus(null)
+    try {
+      await validateRawPlist(rawXml)
+      setRawStatus("Raw plist is valid.")
+    } catch (e) {
+      setError(String(e))
+    }
+  }
+
+  const handleSaveRaw = async () => {
+    if (!editingJob || !onSaveRaw) return
+
+    setError(null)
+    setRawStatus(null)
+    setSaving(true)
+    try {
+      await validateRawPlist(rawXml)
+      await onSaveRaw(editingJob.plist_path, rawXml)
       onClose()
     } catch (e) {
       setError(String(e))
@@ -592,6 +721,332 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
             <p className="text-xs text-muted-foreground">
               File path to write the command's error output. Useful for debugging failures.
             </p>
+          </div>
+
+          <div className="rounded-lg border">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+              onClick={() => setAdvancedOpen((value) => !value)}
+            >
+              <div>
+                <h3 className="text-sm font-medium">Advanced configuration</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Optional launchd keys and raw plist editing for unsupported fields.
+                </p>
+              </div>
+              {advancedOpen ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+
+            {advancedOpen && (
+            <div className="grid gap-4 border-t p-4">
+              <div className="grid gap-1.5">
+                <Label htmlFor="environment">
+                  Environment Variables <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <textarea
+                  id="environment"
+                  className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm font-mono outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  placeholder={"PATH=/usr/local/bin:/usr/bin:/bin\nNODE_ENV=production"}
+                  value={environmentText}
+                  onChange={(e) => setEnvironmentText(e.target.value)}
+                  spellCheck={false}
+                  autoCorrect="off"
+                />
+                <p className="text-xs text-muted-foreground">
+                  One KEY=value pair per line. Values are written as strings.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="root-dir">
+                    Root Directory <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="root-dir"
+                    placeholder="/path/to/chroot"
+                    value={config.root_directory ?? ""}
+                    onChange={(e) =>
+                      setConfig({ ...config, root_directory: e.target.value })
+                    }
+                    spellCheck={false}
+                    autoCorrect="off"
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label htmlFor="umask">
+                    Umask <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="umask"
+                    placeholder="022"
+                    value={config.umask ?? ""}
+                    onChange={(e) => setConfig({ ...config, umask: e.target.value })}
+                    spellCheck={false}
+                    autoCorrect="off"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="throttle">
+                    Throttle Interval <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="throttle"
+                    type="number"
+                    min={0}
+                    placeholder="10"
+                    value={config.throttle_interval ?? ""}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        throttle_interval: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Minimum seconds between launches after repeated exits.
+                  </p>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label htmlFor="nice">
+                    Nice <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="nice"
+                    type="number"
+                    min={-20}
+                    max={20}
+                    placeholder="0"
+                    value={config.nice ?? ""}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        nice: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="process-type">
+                    Process Type <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Select
+                    value={config.process_type ?? "default"}
+                    onValueChange={(v) =>
+                      setConfig({
+                        ...config,
+                        process_type: v === "default" ? null : (v as ProcessType),
+                      })
+                    }
+                  >
+                    <SelectTrigger id="process-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Default</SelectItem>
+                      <SelectItem value="Background">Background</SelectItem>
+                      <SelectItem value="Standard">Standard</SelectItem>
+                      <SelectItem value="Adaptive">Adaptive</SelectItem>
+                      <SelectItem value="Interactive">Interactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label htmlFor="start-on-mount">Start On Mount</Label>
+                  <Select
+                    value={config.start_on_mount ? "true" : "false"}
+                    onValueChange={(v) =>
+                      setConfig({ ...config, start_on_mount: v === "true" })
+                    }
+                  >
+                    <SelectTrigger id="start-on-mount">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Yes</SelectItem>
+                      <SelectItem value="false">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="abandon-process-group">Abandon Process Group</Label>
+                <Select
+                  value={config.abandon_process_group ? "true" : "false"}
+                  onValueChange={(v) =>
+                    setConfig({ ...config, abandon_process_group: v === "true" })
+                  }
+                >
+                  <SelectTrigger id="abandon-process-group">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Yes</SelectItem>
+                    <SelectItem value="false">No</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  If enabled, launchd will not kill remaining child processes when the job exits.
+                </p>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="watch-paths">
+                  Watch Paths <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <textarea
+                  id="watch-paths"
+                  className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm font-mono outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  placeholder={"/path/to/file\n/path/to/directory"}
+                  value={watchPathsText}
+                  onChange={(e) => setWatchPathsText(e.target.value)}
+                  spellCheck={false}
+                  autoCorrect="off"
+                />
+                <p className="text-xs text-muted-foreground">
+                  One path per line. Starts the job when any listed path changes.
+                </p>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="queue-directories">
+                  Queue Directories <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <textarea
+                  id="queue-directories"
+                  className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm font-mono outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  placeholder={"/path/to/queue"}
+                  value={queueDirectoriesText}
+                  onChange={(e) => setQueueDirectoriesText(e.target.value)}
+                  spellCheck={false}
+                  autoCorrect="off"
+                />
+                <p className="text-xs text-muted-foreground">
+                  One directory per line. Keeps the job alive while listed directories are not empty.
+                </p>
+              </div>
+
+              <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+                <div>
+                  <h4 className="text-sm font-medium">Resource Limits</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Optional setrlimit values. Commonly used for file descriptors and process limits.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 text-xs font-medium text-muted-foreground">
+                  <span>Limit</span>
+                  <span>Soft</span>
+                  <span>Hard</span>
+                </div>
+
+                {[
+                  ["Core bytes", "core"],
+                  ["Number of Files", "number_of_files"],
+                  ["Number of Processes", "number_of_processes"],
+                  ["CPU seconds", "cpu"],
+                  ["Data bytes", "data"],
+                  ["File Size bytes", "file_size"],
+                  ["Memory Lock bytes", "memory_lock"],
+                  ["Resident Set bytes", "resident_set_size"],
+                  ["Stack bytes", "stack"],
+                ].map(([label, key]) => (
+                  <div key={key} className="grid grid-cols-[1fr_1fr_1fr] items-center gap-2">
+                    <Label className="text-xs">{label}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder={key === "number_of_files" ? "65536" : ""}
+                      value={config.soft_resource_limits?.[key as keyof ResourceLimits] ?? ""}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          soft_resource_limits: setLimitValue(
+                            config.soft_resource_limits,
+                            key as keyof ResourceLimits,
+                            e.target.value,
+                          ),
+                        })
+                      }
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder={key === "number_of_files" ? "65536" : ""}
+                      value={config.hard_resource_limits?.[key as keyof ResourceLimits] ?? ""}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          hard_resource_limits: setLimitValue(
+                            config.hard_resource_limits,
+                            key as keyof ResourceLimits,
+                            e.target.value,
+                          ),
+                        })
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {isEditing && (
+                <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+                  <div>
+                    <h4 className="text-sm font-medium">Raw plist XML</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Use this for unsupported or complex keys. Validation uses plutil before saving.
+                    </p>
+                  </div>
+                  <textarea
+                    className="min-h-64 rounded-md border bg-background px-3 py-2 text-xs font-mono outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                    value={rawXml}
+                    onChange={(e) => {
+                      setRawStatus(null)
+                      setRawXml(e.target.value)
+                    }}
+                    spellCheck={false}
+                    autoCorrect="off"
+                  />
+                  {rawStatus && (
+                    <div className="text-xs text-muted-foreground">{rawStatus}</div>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleValidateRaw()}
+                    >
+                      Validate XML
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleSaveRaw()}
+                      disabled={saving || !onSaveRaw}
+                    >
+                      Save Raw XML
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            )}
           </div>
 
           {error && <div className="text-sm text-destructive">{error}</div>}

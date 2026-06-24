@@ -33,7 +33,39 @@ export type PlistConfig = {
   environment_variables: Record<string, string> | null
   disabled: boolean | null
   wake_system: boolean | null
+  root_directory: string | null
+  umask: string | null
+  throttle_interval: number | null
+  start_on_mount: boolean | null
+  watch_paths: string[] | null
+  queue_directories: string[] | null
+  process_type: ProcessType | null
+  nice: number | null
+  abandon_process_group: boolean | null
+  soft_resource_limits: ResourceLimits | null
+  hard_resource_limits: ResourceLimits | null
   raw_xml: string
+}
+
+export type ProcessType = "Background" | "Standard" | "Adaptive" | "Interactive"
+
+export type ResourceLimits = {
+  core: number | null
+  cpu: number | null
+  data: number | null
+  file_size: number | null
+  memory_lock: number | null
+  number_of_files: number | null
+  number_of_processes: number | null
+  resident_set_size: number | null
+  stack: number | null
+}
+
+export type ProcessStats = {
+  pid: number
+  cpu_percent: number
+  memory_bytes: number
+  timestamp: number
 }
 
 export type LaunchdJob = {

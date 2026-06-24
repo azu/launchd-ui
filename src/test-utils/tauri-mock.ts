@@ -1,4 +1,4 @@
-import type { JobListEntry, LaunchdJob, PlistConfig } from "@/types"
+import type { JobListEntry, LaunchdJob, PlistConfig, ProcessStats } from "@/types"
 
 const defaultPlistConfig: PlistConfig = {
   label: "",
@@ -14,6 +14,17 @@ const defaultPlistConfig: PlistConfig = {
   environment_variables: null,
   disabled: null,
   wake_system: null,
+  root_directory: null,
+  umask: null,
+  throttle_interval: null,
+  start_on_mount: null,
+  watch_paths: null,
+  queue_directories: null,
+  process_type: null,
+  nice: null,
+  abandon_process_group: null,
+  soft_resource_limits: null,
+  hard_resource_limits: null,
   raw_xml: "",
 }
 
@@ -85,6 +96,8 @@ const handlers: Record<string, CommandHandler> = {
   enable_job: () => undefined,
   disable_job: () => undefined,
   save_job: () => undefined,
+  save_raw_plist: () => undefined,
+  validate_raw_plist: () => undefined,
   create_job: () => "/Users/test/Library/LaunchAgents/new-job.plist",
   delete_job: () => undefined,
   get_home_dir: () => "/Users/test",
@@ -95,6 +108,15 @@ const handlers: Record<string, CommandHandler> = {
   }),
   open_log_in_editor: () => undefined,
   reveal_in_finder: () => undefined,
+  get_process_stats: (args) => {
+    const pid = args.pid as number
+    return {
+      pid,
+      cpu_percent: 5.2,
+      memory_bytes: 52_428_800,
+      timestamp: Date.now(),
+    } satisfies ProcessStats
+  },
 }
 
 let customHandlers: Record<string, CommandHandler> = {}
