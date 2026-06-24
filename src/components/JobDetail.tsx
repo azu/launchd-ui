@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CommandPanel } from "@/components/CommandPanel"
 import { LogViewer } from "@/components/LogViewer"
 import type { LaunchdJob } from "@/types"
 import { getJobDetail, revealInFinder } from "@/lib/invoke"
@@ -107,6 +108,7 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
               <TabsList>
                 <TabsTrigger value="config">Configuration</TabsTrigger>
                 <TabsTrigger value="logs">Logs</TabsTrigger>
+                <TabsTrigger value="commands">Commands</TabsTrigger>
               </TabsList>
 
               <TabsContent value="config" className="space-y-1">
@@ -200,8 +202,12 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                       <div className="text-sm text-muted-foreground py-4">
                         No log paths configured for this agent
                       </div>
-                    )}
+                  )}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="commands">
+                <CommandPanel job={job} />
               </TabsContent>
             </Tabs>
           </div>
