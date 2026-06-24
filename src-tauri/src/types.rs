@@ -90,14 +90,6 @@ pub struct LaunchdJob {
     pub last_run_at: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProcessStats {
-    pub pid: u32,
-    pub cpu_percent: f32,
-    pub memory_bytes: u64,
-    pub timestamp: u64,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

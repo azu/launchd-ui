@@ -2,7 +2,6 @@ mod commands;
 mod error;
 mod launchctl;
 mod plist_util;
-mod process_stats;
 mod types;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,7 +26,6 @@ pub fn run() {
             commands::open_log_in_editor,
             commands::get_home_dir,
             commands::reveal_in_finder,
-            commands::get_process_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

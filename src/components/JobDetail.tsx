@@ -11,7 +11,6 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CommandPanel } from "@/components/CommandPanel"
 import { LogViewer } from "@/components/LogViewer"
-import { ResourceMonitor } from "@/components/ResourceMonitor"
 import type { LaunchdJob, ResourceLimits } from "@/types"
 import { getJobDetail, revealInFinder } from "@/lib/invoke"
 import { FolderOpen } from "lucide-react"
@@ -144,7 +143,6 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
               <TabsList>
                 <TabsTrigger value="config">Configuration</TabsTrigger>
                 <TabsTrigger value="logs">Logs</TabsTrigger>
-                <TabsTrigger value="monitor">Monitor</TabsTrigger>
                 <TabsTrigger value="commands">Commands</TabsTrigger>
               </TabsList>
 
@@ -279,13 +277,6 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
                       </div>
                     )}
                 </div>
-              </TabsContent>
-
-              <TabsContent value="monitor">
-                <ResourceMonitor
-                  pid={job.pid ?? null}
-                  enabled={activeTab === "monitor"}
-                />
               </TabsContent>
 
               <TabsContent value="commands">
