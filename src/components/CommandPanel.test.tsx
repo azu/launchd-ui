@@ -52,6 +52,24 @@ describe("CommandPanel command builders", () => {
     ])
   })
 
+  it("quotes labels in service targets", () => {
+    const commands = buildCommands(
+      job({
+        label: "com.example.agent's job",
+      })
+    )
+
+    expect(commands.map((item) => item.command)).toContain(
+      "launchctl kickstart -k gui/$(id -u)/'com.example.agent'\\''s job'"
+    )
+    expect(commands.map((item) => item.command)).toContain(
+      "launchctl enable gui/$(id -u)/'com.example.agent'\\''s job'"
+    )
+    expect(commands.map((item) => item.command)).toContain(
+      "launchctl disable gui/$(id -u)/'com.example.agent'\\''s job'"
+    )
+  })
+
   it("uses sudo for system agents", () => {
     const commands = buildCommands(
       job({

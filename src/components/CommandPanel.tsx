@@ -30,7 +30,7 @@ function sudoPrefix(job: LaunchdJob): string {
 export function buildCommands(job: LaunchdJob): CommandRow[] {
   const prefix = sudoPrefix(job)
   const domain = domainFor(job)
-  const target = `${domain}/${job.label}`
+  const target = `${domain}/${shellQuote(job.label)}`
   const plistPath = shellQuote(job.plist_path)
 
   return [
