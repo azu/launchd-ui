@@ -13,7 +13,7 @@ type CommandRow = {
   destructive?: boolean
 }
 
-function shellQuote(value: string): string {
+export function shellQuote(value: string): string {
   if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(value)) return value
   return `'${value.replace(/'/g, "'\\''")}'`
 }
@@ -24,17 +24,19 @@ function domainFor(job: LaunchdJob): string {
 }
 
 function sudoPrefix(job: LaunchdJob): string {
-  return job.source === "SystemDaemon" ? "sudo " : ""
+  return job.source === "UserAgent" ? "" : "sudo "
 }
 
-function buildCommands(job: LaunchdJob): CommandRow[] {
+export function buildCommands(job: LaunchdJob): CommandRow[] {
   const prefix = sudoPrefix(job)
-  const target = `${domainFor(job)}/${job.label}`
+  const domain = domainFor(job)
+  const target = `${domain}/${job.label}`
   const plistPath = shellQuote(job.plist_path)
 
   return [
-    { label: "Start", command: `${prefix}launchctl kickstart ${target}` },
-    { label: "Stop", command: `${prefix}launchctl bootout ${target}` },
+    { label: "Start", command: `${prefix}launchctl bootstrap ${domain} ${plistPath}` },
+    { label: "Stop", command: `${prefix}launchctl bootout ${domain} ${plistPath}` },
+    { label: "Kickstart", command: `${prefix}launchctl kickstart -k ${target}` },
     { label: "Enable", command: `${prefix}launchctl enable ${target}` },
     { label: "Disable", command: `${prefix}launchctl disable ${target}` },
     {
@@ -51,7 +53,10 @@ export function CommandPanel({ job }: CommandPanelProps) {
 
   const copyCommand = async (command: string) => {
     try {
-      await navigator.clipboard?.writeText(command)
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard API is unavailable")
+      }
+      await navigator.clipboard.writeText(command)
       setCopied(command)
       window.setTimeout(() => setCopied(null), 1200)
     } catch {
