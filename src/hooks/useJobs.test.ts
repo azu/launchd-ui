@@ -55,6 +55,26 @@ describe("useJobs", () => {
     })
   })
 
+  it("filters by Home (user-authored agents)", async () => {
+    const { result } = renderHook(() => useJobs())
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    act(() => {
+      result.current.setSourceFilter("Home")
+    })
+
+    await waitFor(() => {
+      expect(result.current.filteredJobs.length).toBe(1)
+      expect(result.current.filteredJobs[0].label).toBe(
+        "com.example.running-agent"
+      )
+      expect(result.current.filteredJobs[0].is_home_agent).toBe(true)
+    })
+  })
+
   it("handles error", async () => {
     setFakeHandler("list_jobs", () => {
       throw new Error("Connection failed")

@@ -25,6 +25,9 @@ pub struct JobListEntry {
     pub source: JobSource,
     pub status: JobStatus,
     pub last_run_at: Option<String>,
+    /// True when this looks like a user-authored automation (a script under the home
+    /// directory), as opposed to a vendor-installed app. Drives the "Home" filter.
+    pub is_home_agent: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,6 +100,7 @@ mod tests {
             source: JobSource::UserAgent,
             status: JobStatus::Running,
             last_run_at: None,
+            is_home_agent: false,
         };
         let json = serde_json::to_string(&entry).unwrap();
         let deserialized: JobListEntry = serde_json::from_str(&json).unwrap();
