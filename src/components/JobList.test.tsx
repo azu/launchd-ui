@@ -113,4 +113,44 @@ describe("JobList", () => {
     )
     expect(screen.getByText("1234")).toBeInTheDocument()
   })
+
+  it('shows "Run now" only for active (non-Unloaded) agents', () => {
+    render(
+      <JobList
+        jobs={mockJobs}
+        loading={false}
+        onStart={noop}
+        onStop={noop}
+        onRestart={noop}
+        onKickstart={noop}
+        onDelete={noop}
+        onSelect={noop}
+        onRevealInFinder={noop}
+      />
+    )
+    // mockJobs has one Running and one Unloaded agent → exactly one Run now button
+    const runButtons = screen.getAllByTitle("Run now")
+    expect(runButtons).toHaveLength(1)
+  })
+
+  it("calls onKickstart when Run now is clicked", () => {
+    const onKickstart = vi.fn()
+    render(
+      <JobList
+        jobs={mockJobs}
+        loading={false}
+        onStart={noop}
+        onStop={noop}
+        onRestart={noop}
+        onKickstart={onKickstart}
+        onDelete={noop}
+        onSelect={noop}
+        onRevealInFinder={noop}
+      />
+    )
+    screen.getByTitle("Run now").click()
+    expect(onKickstart).toHaveBeenCalledWith(
+      expect.objectContaining({ label: "com.example.running" })
+    )
+  })
 })
