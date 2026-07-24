@@ -129,7 +129,7 @@ describe("JobList", () => {
       />
     )
     // mockJobs has one Running and one Unloaded agent → exactly one Run now button
-    const runButtons = screen.getAllByTitle("Run now")
+    const runButtons = screen.getAllByRole("button", { name: "Run now" })
     expect(runButtons).toHaveLength(1)
   })
 
