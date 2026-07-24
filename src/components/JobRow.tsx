@@ -165,6 +165,18 @@ export function JobRow({
               <RotateCw className="h-4 w-4" />
             </Button>
           )}
+          {job.status !== "Unloaded" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onKickstart(job)}
+              disabled={!isUserAgent}
+              title={isUserAgent ? "Run now" : "Cannot run system agents"}
+            >
+              <Zap className="h-4 w-4" />
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
