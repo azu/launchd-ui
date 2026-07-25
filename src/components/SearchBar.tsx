@@ -1,18 +1,19 @@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import type { JobSource } from "@/types"
+import type { SourceFilter } from "@/types"
 import { Search } from "lucide-react"
 
 type SearchBarProps = {
   search: string
   onSearchChange: (value: string) => void
-  sourceFilter: JobSource | "All"
-  onSourceFilterChange: (value: JobSource | "All") => void
+  sourceFilter: SourceFilter
+  onSourceFilterChange: (value: SourceFilter) => void
 }
 
-const sourceOptions: Array<{ value: JobSource | "All"; label: string }> = [
+const sourceOptions: Array<{ value: SourceFilter; label: string }> = [
   { value: "All", label: "All" },
   { value: "UserAgent", label: "User" },
+  { value: "Home", label: "Home" },
   { value: "SystemAgent", label: "System" },
   { value: "SystemDaemon", label: "Daemon" },
 ]

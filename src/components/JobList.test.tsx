@@ -12,6 +12,7 @@ const mockJobs: JobListEntry[] = [
     source: "UserAgent",
     status: "Running",
     last_run_at: String(Date.now()),
+    is_home_agent: true,
   },
   {
     label: "com.example.stopped",
@@ -21,6 +22,7 @@ const mockJobs: JobListEntry[] = [
     source: "UserAgent",
     status: "Unloaded",
     last_run_at: null,
+    is_home_agent: false,
   },
 ]
 

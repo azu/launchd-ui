@@ -2,7 +2,7 @@ use crate::error::AppError;
 use crate::launchctl;
 use crate::plist_util;
 use crate::types::PlistConfig;
-use crate::types::{JobListEntry, JobStatus, LaunchdJob};
+use crate::types::{JobListEntry, JobSource, JobStatus, LaunchdJob};
 use std::collections::HashMap;
 
 fn get_last_run_at(config: &PlistConfig) -> Option<String> {
@@ -21,6 +21,63 @@ fn get_last_run_at(config: &PlistConfig) -> Option<String> {
     }
 
     latest.map(|ms| ms.to_string())
+}
+
+/// True when a program/argument path looks like a vendor app binary rather than a
+/// user-authored script: it lives in /Applications, inside an `.app` bundle, or under
+/// `~/Library/Application Support` (where auto-updaters install themselves).
+fn is_app_path(path: &str) -> bool {
+    path.starts_with("/Applications/")
+        || path.contains(".app/")
+        || path.contains("/Library/Application Support/")
+}
+
+/// True when `s` references a path under the user's home directory that is not itself an
+/// app-bundle path. Used to confirm the agent actually runs a script the user owns.
+/// `s` may be a bare path argument or a `zsh -c` command string with the path inside it.
+fn references_home_path(s: &str, home: &str) -> bool {
+    s.contains(home) && !is_app_path(s)
+}
+
+/// Classifies a user agent as a "Home" agent: a user-authored automation (e.g. a shell or
+/// python script under `~/`) rather than a vendor-installed app. Requires that the launched
+/// executable is not an app bundle AND that some program path points under the home directory.
+fn is_home_agent(source: &JobSource, config: &PlistConfig) -> bool {
+    if *source != JobSource::UserAgent {
+        return false;
+    }
+    let home = match dirs::home_dir() {
+        Some(h) => h.to_string_lossy().into_owned(),
+        None => return false,
+    };
+    if home.is_empty() {
+        return false;
+    }
+
+    // The executable actually launched: `Program`, else the first `ProgramArguments` entry
+    // (which for scripts is usually the interpreter, e.g. /bin/bash).
+    let executable = config.program.clone().or_else(|| {
+        config
+            .program_arguments
+            .as_ref()
+            .and_then(|a| a.first().cloned())
+    });
+    let Some(exe) = executable else {
+        return false;
+    };
+    if is_app_path(&exe) {
+        return false;
+    }
+
+    // Require at least one referenced path under the user's home directory (the script itself).
+    let mut strings: Vec<&str> = Vec::new();
+    if let Some(ref p) = config.program {
+        strings.push(p);
+    }
+    if let Some(ref args) = config.program_arguments {
+        strings.extend(args.iter().map(String::as_str));
+    }
+    strings.iter().any(|s| references_home_path(s, &home))
 }
 
 fn ensure_user_agent(plist_path: &str) -> Result<(), AppError> {
@@ -62,6 +119,7 @@ pub async fn list_jobs() -> Result<Vec<JobListEntry>, AppError> {
         };
 
         let last_run_at = get_last_run_at(&config);
+        let home_agent = is_home_agent(&source, &config);
         entries.push(JobListEntry {
             label: config.label,
             pid,
@@ -70,6 +128,7 @@ pub async fn list_jobs() -> Result<Vec<JobListEntry>, AppError> {
             source,
             status,
             last_run_at,
+            is_home_agent: home_agent,
         });
     }
 
@@ -289,4 +348,91 @@ pub async fn reveal_in_finder(path: String) -> Result<(), AppError> {
         .arg(&path)
         .spawn()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg(program: Option<&str>, args: Option<Vec<&str>>) -> PlistConfig {
+        PlistConfig {
+            label: "test".to_string(),
+            program: program.map(String::from),
+            program_arguments: args.map(|a| a.into_iter().map(String::from).collect()),
+            run_at_load: None,
+            keep_alive: None,
+            start_interval: None,
+            start_calendar_interval: None,
+            standard_out_path: None,
+            standard_error_path: None,
+            working_directory: None,
+            environment_variables: None,
+            disabled: None,
+            wake_system: None,
+            raw_xml: String::new(),
+        }
+    }
+
+    #[test]
+    fn test_is_app_path() {
+        assert!(is_app_path(
+            "/Applications/Mailspring.app/Contents/MacOS/Mailspring"
+        ));
+        assert!(is_app_path(
+            "/Users/x/Library/Application Support/Google/GoogleUpdater/Current/GoogleUpdater.app/Contents/MacOS/GoogleUpdater"
+        ));
+        assert!(!is_app_path("/bin/bash"));
+        assert!(!is_app_path("/Users/x/instagent-launcher.sh"));
+    }
+
+    #[test]
+    fn test_references_home_path() {
+        let home = "/Users/x";
+        assert!(references_home_path("/Users/x/instagent-launcher.sh", home));
+        // Home path embedded inside a `zsh -c` command string.
+        assert!(references_home_path(
+            "cd \"/Users/x/ClaudeCoding/vimeo\" && python3 refresh.py",
+            home
+        ));
+        // Only a vendor app path under home -> not a user script.
+        assert!(!references_home_path(
+            "/Users/x/Library/Application Support/Google/GoogleUpdater.app/foo",
+            home
+        ));
+        assert!(!references_home_path("/bin/bash", home));
+    }
+
+    #[test]
+    fn test_is_home_agent_classification() {
+        let home = dirs::home_dir().unwrap().to_string_lossy().into_owned();
+
+        // instagent-style: interpreter running a home script.
+        let launcher = format!("{home}/instagent-launcher.sh");
+        let instagent = cfg(None, Some(vec!["/bin/bash", &launcher]));
+        assert!(is_home_agent(&JobSource::UserAgent, &instagent));
+
+        // vimeo-style: zsh -c with the home path inside the command string.
+        let command = format!("cd \"{home}/ClaudeCoding/vimeo\" && python3 refresh.py");
+        let vimeo = cfg(None, Some(vec!["/bin/zsh", "-l", "-c", &command]));
+        assert!(is_home_agent(&JobSource::UserAgent, &vimeo));
+
+        // Vendor app in /Applications -> not a home agent.
+        let mailspring = cfg(
+            None,
+            Some(vec![
+                "/Applications/Mailspring.app/Contents/MacOS/Mailspring",
+            ]),
+        );
+        assert!(!is_home_agent(&JobSource::UserAgent, &mailspring));
+
+        // Vendor auto-updater under ~/Library/Application Support -> not a home agent.
+        let updater = format!(
+            "{home}/Library/Application Support/Google/GoogleUpdater.app/Contents/MacOS/GoogleUpdater"
+        );
+        let google = cfg(Some(&updater), None);
+        assert!(!is_home_agent(&JobSource::UserAgent, &google));
+
+        // Home script but classified as a system agent -> excluded (Home is a User subset).
+        assert!(!is_home_agent(&JobSource::SystemAgent, &instagent));
+    }
 }

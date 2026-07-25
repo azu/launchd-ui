@@ -26,6 +26,7 @@ const fakeJobs: JobListEntry[] = [
     source: "UserAgent",
     status: "Running",
     last_run_at: String(Date.now()),
+    is_home_agent: true,
   },
   {
     label: "com.example.stopped-agent",
@@ -35,6 +36,7 @@ const fakeJobs: JobListEntry[] = [
     source: "UserAgent",
     status: "Unloaded",
     last_run_at: null,
+    is_home_agent: false,
   },
   {
     label: "com.apple.system-agent",
@@ -44,6 +46,7 @@ const fakeJobs: JobListEntry[] = [
     source: "SystemAgent",
     status: "Running",
     last_run_at: String(Date.now() - 3600000),
+    is_home_agent: false,
   },
 ]
 
