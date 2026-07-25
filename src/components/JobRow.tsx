@@ -165,13 +165,14 @@ export function JobRow({
               <RotateCw className="h-4 w-4" />
             </Button>
           )}
-          {job.status !== "Unloaded" && (
+          {(job.status === "Running" || job.status === "Loaded") && (
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8"
               onClick={() => onKickstart(job)}
               disabled={!isUserAgent}
+              aria-label={isUserAgent ? "Run now" : "Cannot run system agents"}
               title={isUserAgent ? "Run now" : "Cannot run system agents"}
             >
               <Zap className="h-4 w-4" />

@@ -148,7 +148,7 @@ describe("JobList", () => {
         onRevealInFinder={noop}
       />
     )
-    screen.getByTitle("Run now").click()
+    screen.getByRole("button", { name: "Run now" }).click()
     expect(onKickstart).toHaveBeenCalledWith(
       expect.objectContaining({ label: "com.example.running" })
     )
