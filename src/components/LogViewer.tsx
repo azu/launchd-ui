@@ -1,14 +1,16 @@
-import { useEffect } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useLogs } from "@/hooks/useLogs"
 import { clearLogFile, openLogInEditor } from "@/lib/invoke"
-import { ExternalLink, RefreshCw, Trash2 } from "lucide-react"
+import { ArrowDownToLine, ExternalLink, RefreshCw, Trash2 } from "lucide-react"
 
 type LogViewerProps = {
   logPath: string | null
   tailLines?: number
 }
+
+const PAGE_SIZE = 200
 
 function formatTime(date: Date): string {
   const h = String(date.getHours()).padStart(2, "0")
@@ -19,14 +21,81 @@ function formatTime(date: Date): string {
   return `${month}/${day} ${h}:${m}:${s}`
 }
 
-export function LogViewer({ logPath, tailLines = 200 }: LogViewerProps) {
-  const { content, modifiedAt, loading, error, fetchLog } = useLogs()
+export function LogViewer({ logPath, tailLines = PAGE_SIZE }: LogViewerProps) {
+  const {
+    contentHtml,
+    modifiedAt,
+    loading,
+    error,
+    tailing,
+    fetchLog,
+    startTailing,
+    stopTailing,
+  } = useLogs()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [visibleLines, setVisibleLines] = useState(tailLines)
+  const loadingMoreRef = useRef(false)
 
   useEffect(() => {
     if (logPath) {
-      fetchLog(logPath, tailLines)
+      setVisibleLines(tailLines)
+      startTailing(logPath, tailLines)
     }
-  }, [logPath, tailLines, fetchLog])
+    return () => stopTailing()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logPath])
+
+  useEffect(() => {
+    if (tailing && scrollRef.current) {
+      const viewport = scrollRef.current.querySelector(
+        '[data-slot="scroll-area-viewport"]'
+      )
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight
+      }
+    }
+  }, [contentHtml, tailing])
+
+  const getViewport = useCallback(() => {
+    return scrollRef.current?.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    ) as Element | null
+  }, [])
+
+  useEffect(() => {
+    const viewport = getViewport()
+    if (!viewport || !logPath) return
+
+    const handleScroll = () => {
+      const atBottom =
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 32
+
+      if (atBottom && !tailing) {
+        startTailing(logPath, visibleLines)
+        return
+      }
+
+      if (!atBottom && tailing) {
+        stopTailing()
+      }
+
+      if (viewport.scrollTop < 16 && !loadingMoreRef.current && !loading) {
+        loadingMoreRef.current = true
+        const prevHeight = viewport.scrollHeight
+        const newLines = visibleLines + PAGE_SIZE
+        setVisibleLines(newLines)
+        fetchLog(logPath, newLines).then(() => {
+          requestAnimationFrame(() => {
+            viewport.scrollTop = viewport.scrollHeight - prevHeight
+            loadingMoreRef.current = false
+          })
+        })
+      }
+    }
+
+    viewport.addEventListener("scroll", handleScroll)
+    return () => viewport.removeEventListener("scroll", handleScroll)
+  }, [tailing, logPath, visibleLines, loading, getViewport, startTailing, stopTailing, fetchLog])
 
   if (!logPath) {
     return (
@@ -53,10 +122,22 @@ export function LogViewer({ logPath, tailLines = 200 }: LogViewerProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => fetchLog(logPath, tailLines)}
+            onClick={() =>
+              tailing ? stopTailing() : startTailing(logPath, visibleLines)
+            }
+          >
+            <ArrowDownToLine className={`h-3 w-3 mr-1 ${tailing ? "text-green-500" : ""}`} />
+            {tailing ? "Unfollow" : "Follow"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchLog(logPath, visibleLines)}
             disabled={loading}
           >
-            <RefreshCw className={`h-3 w-3 mr-1 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-3 w-3 mr-1 ${loading && !tailing ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
           <Button
@@ -64,6 +145,7 @@ export function LogViewer({ logPath, tailLines = 200 }: LogViewerProps) {
             size="sm"
             onClick={async () => {
               await clearLogFile(logPath)
+              setVisibleLines(tailLines)
               fetchLog(logPath, tailLines)
             }}
           >
@@ -83,10 +165,13 @@ export function LogViewer({ logPath, tailLines = 200 }: LogViewerProps) {
       {error ? (
         <div className="text-sm text-destructive">{error}</div>
       ) : (
-        <ScrollArea className="h-64 rounded-md border bg-muted/30">
-          <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-all">
-            {content || "(empty)"}
-          </pre>
+        <ScrollArea ref={scrollRef} className="h-64 rounded-md border bg-muted/30">
+          <pre
+            className="ansi-log p-3 text-xs font-mono whitespace-pre-wrap break-all"
+            dangerouslySetInnerHTML={{
+              __html: contentHtml || "(empty)",
+            }}
+          />
         </ScrollArea>
       )}
     </div>
