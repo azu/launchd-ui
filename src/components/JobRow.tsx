@@ -17,6 +17,7 @@ import {
   Trash2,
   FileText,
   FolderOpen,
+  ScrollText,
   Zap,
 } from "lucide-react"
 
@@ -44,6 +45,7 @@ type JobRowProps = {
   onKickstart: (job: JobListEntry) => void
   onDelete: (job: JobListEntry) => void
   onSelect: (job: JobListEntry) => void
+  onViewLogs: (job: JobListEntry) => void
   onRevealInFinder: (job: JobListEntry) => void
 }
 
@@ -95,6 +97,7 @@ export function JobRow({
   onKickstart,
   onDelete,
   onSelect,
+  onViewLogs,
   onRevealInFinder,
 }: JobRowProps) {
   const isUserAgent = job.source === "UserAgent"
@@ -176,6 +179,17 @@ export function JobRow({
               title={isUserAgent ? "Run now" : "Cannot run system agents"}
             >
               <Zap className="h-4 w-4" />
+            </Button>
+          )}
+          {job.status === "Running" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onViewLogs(job)}
+              title="Logs"
+            >
+              <ScrollText className="h-4 w-4" />
             </Button>
           )}
           <DropdownMenu>
