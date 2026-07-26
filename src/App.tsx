@@ -23,7 +23,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { Plus, RefreshCw } from "lucide-react"
+import { Monitor, Moon, Plus, RefreshCw, Sun } from "lucide-react"
+import { useTheme } from "@/hooks/useTheme"
 
 function App() {
   const {
@@ -90,12 +91,24 @@ function App() {
     setDeleteTarget(null)
   }, [deleteTarget, handleAction])
 
+  const { theme, cycle } = useTheme()
+  const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b px-4 py-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold">launchd-ui</h1>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={cycle}
+              title={`Theme: ${theme}`}
+            >
+              <ThemeIcon className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="sm" onClick={refresh}>
               <RefreshCw className="h-4 w-4 mr-1" />
               Refresh
