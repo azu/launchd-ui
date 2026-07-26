@@ -98,7 +98,6 @@ function App() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">launchd-ui</h1>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -109,6 +108,9 @@ function App() {
             >
               <ThemeIcon className="h-4 w-4" />
             </Button>
+            <h1 className="text-lg font-semibold">launchd-ui</h1>
+          </div>
+          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={refresh}>
               <RefreshCw className="h-4 w-4 mr-1" />
               Refresh
