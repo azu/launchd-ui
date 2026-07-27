@@ -19,6 +19,7 @@ import { formatCalendarIntervals } from "@/lib/calendar-utils"
 type JobDetailProps = {
   plistPath: string | null
   open: boolean
+  defaultTab?: string
   onClose: () => void
   onEdit: (job: LaunchdJob) => void
 }
@@ -33,22 +34,24 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   )
 }
 
-export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) {
+export function JobDetail({ plistPath, open, defaultTab = "config", onClose, onEdit }: JobDetailProps) {
   const [job, setJob] = useState<LaunchdJob | null>(null)
   const [loading, setLoading] = useState(false)
+  const [tab, setTab] = useState(defaultTab)
 
   useEffect(() => {
     if (!plistPath || !open) return
+    setTab(defaultTab)
     setLoading(true)
     getJobDetail(plistPath)
       .then(setJob)
       .catch(() => setJob(null))
       .finally(() => setLoading(false))
-  }, [plistPath, open])
+  }, [plistPath, open, defaultTab])
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <SheetContent className="w-[600px] sm:w-[640px] sm:max-w-[640px] overflow-y-auto p-0">
+      <SheetContent className="w-[720px] sm:w-[780px] sm:max-w-[780px] overflow-y-auto p-0">
         <SheetHeader>
           <SheetTitle className="text-base font-semibold">
             {job?.label ?? "Loading..."}
@@ -104,7 +107,7 @@ export function JobDetail({ plistPath, open, onClose, onEdit }: JobDetailProps) 
 
             <Separator />
 
-            <Tabs defaultValue="config">
+            <Tabs value={tab} onValueChange={setTab}>
               <TabsList>
                 <TabsTrigger value="config">Configuration</TabsTrigger>
                 <TabsTrigger value="logs">Logs</TabsTrigger>

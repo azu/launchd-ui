@@ -17,6 +17,7 @@ type JobListProps = {
   onKickstart: (job: JobListEntry) => void
   onDelete: (job: JobListEntry) => void
   onSelect: (job: JobListEntry) => void
+  onViewLogs: (job: JobListEntry) => void
   onRevealInFinder: (job: JobListEntry) => void
 }
 
@@ -29,6 +30,7 @@ export function JobList({
   onKickstart,
   onDelete,
   onSelect,
+  onViewLogs,
   onRevealInFinder,
 }: JobListProps) {
   if (loading) {
@@ -70,6 +72,7 @@ export function JobList({
             onKickstart={onKickstart}
             onDelete={onDelete}
             onSelect={onSelect}
+            onViewLogs={onViewLogs}
             onRevealInFinder={onRevealInFinder}
           />
         ))}

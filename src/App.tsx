@@ -40,6 +40,7 @@ function App() {
 
   const [selectedPlistPath, setSelectedPlistPath] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [detailTab, setDetailTab] = useState("config")
   const [formOpen, setFormOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
   const [editingJob, setEditingJob] = useState<LaunchdJob | null>(null)
@@ -61,6 +62,13 @@ function App() {
 
   const handleSelect = useCallback((job: JobListEntry) => {
     setSelectedPlistPath(job.plist_path)
+    setDetailTab("config")
+    setDetailOpen(true)
+  }, [])
+
+  const handleViewLogs = useCallback((job: JobListEntry) => {
+    setSelectedPlistPath(job.plist_path)
+    setDetailTab("logs")
     setDetailOpen(true)
   }, [])
 
@@ -161,6 +169,7 @@ function App() {
             onKickstart={(job) => handleAction(() => kickstartJob(job.label, job.plist_path))}
             onDelete={(job) => setDeleteTarget(job)}
             onSelect={handleSelect}
+            onViewLogs={handleViewLogs}
             onRevealInFinder={(job) => revealInFinder(job.plist_path)}
           />
         </div>
@@ -169,6 +178,7 @@ function App() {
       <JobDetail
         plistPath={selectedPlistPath}
         open={detailOpen}
+        defaultTab={detailTab}
         onClose={() => setDetailOpen(false)}
         onEdit={handleEdit}
       />

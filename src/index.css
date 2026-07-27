@@ -124,3 +124,51 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ansi_up class-based ANSI color rendering */
+.ansi-log .ansi-bold { font-weight: bold; }
+.ansi-log .ansi-dim { opacity: 0.7; }
+.ansi-log .ansi-italic { font-style: italic; }
+.ansi-log .ansi-underline { text-decoration: underline; }
+.ansi-log .ansi-strikethrough { text-decoration: line-through; }
+
+.ansi-log .ansi-black-fg { color: #3c3836; }
+.ansi-log .ansi-red-fg { color: #cc241d; }
+.ansi-log .ansi-green-fg { color: #98971a; }
+.ansi-log .ansi-yellow-fg { color: #d79921; }
+.ansi-log .ansi-blue-fg { color: #458588; }
+.ansi-log .ansi-magenta-fg { color: #b16286; }
+.ansi-log .ansi-cyan-fg { color: #689d6a; }
+.ansi-log .ansi-white-fg { color: #a89984; }
+
+.ansi-log .ansi-bright-black-fg { color: #928374; }
+.ansi-log .ansi-bright-red-fg { color: #fb4934; }
+.ansi-log .ansi-bright-green-fg { color: #b8bb26; }
+.ansi-log .ansi-bright-yellow-fg { color: #fabd2f; }
+.ansi-log .ansi-bright-blue-fg { color: #83a598; }
+.ansi-log .ansi-bright-magenta-fg { color: #d3869b; }
+.ansi-log .ansi-bright-cyan-fg { color: #8ec07c; }
+.ansi-log .ansi-bright-white-fg { color: #ebdbb2; }
+
+.ansi-log .ansi-black-bg { background-color: #3c3836; }
+.ansi-log .ansi-red-bg { background-color: #cc241d; }
+.ansi-log .ansi-green-bg { background-color: #98971a; }
+.ansi-log .ansi-yellow-bg { background-color: #d79921; }
+.ansi-log .ansi-blue-bg { background-color: #458588; }
+.ansi-log .ansi-magenta-bg { background-color: #b16286; }
+.ansi-log .ansi-cyan-bg { background-color: #689d6a; }
+.ansi-log .ansi-white-bg { background-color: #a89984; }
+
+.ansi-log .ansi-bright-black-bg { background-color: #928374; }
+.ansi-log .ansi-bright-red-bg { background-color: #fb4934; }
+.ansi-log .ansi-bright-green-bg { background-color: #b8bb26; }
+.ansi-log .ansi-bright-yellow-bg { background-color: #fabd2f; }
+.ansi-log .ansi-bright-blue-bg { background-color: #83a598; }
+.ansi-log .ansi-bright-magenta-bg { background-color: #d3869b; }
+.ansi-log .ansi-bright-cyan-bg { background-color: #8ec07c; }
+.ansi-log .ansi-bright-white-bg { background-color: #ebdbb2; }
+
+.dark .ansi-log .ansi-black-fg { color: #928374; }
+.dark .ansi-log .ansi-white-fg { color: #ebdbb2; }
+.dark .ansi-log .ansi-bright-black-fg { color: #a89984; }
+.dark .ansi-log .ansi-bright-white-fg { color: #fbf1c7; }

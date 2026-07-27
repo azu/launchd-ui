@@ -40,6 +40,7 @@ describe("JobList", () => {
         onKickstart={noop}
         onDelete={noop}
         onSelect={noop}
+        onViewLogs={noop}
         onRevealInFinder={noop}
       />
     )
@@ -57,6 +58,7 @@ describe("JobList", () => {
         onKickstart={noop}
         onDelete={noop}
         onSelect={noop}
+        onViewLogs={noop}
         onRevealInFinder={noop}
       />
     )
@@ -74,6 +76,7 @@ describe("JobList", () => {
         onKickstart={noop}
         onDelete={noop}
         onSelect={noop}
+        onViewLogs={noop}
         onRevealInFinder={noop}
       />
     )
@@ -92,6 +95,7 @@ describe("JobList", () => {
         onKickstart={noop}
         onDelete={noop}
         onSelect={noop}
+        onViewLogs={noop}
         onRevealInFinder={noop}
       />
     )
@@ -110,6 +114,7 @@ describe("JobList", () => {
         onKickstart={noop}
         onDelete={noop}
         onSelect={noop}
+        onViewLogs={noop}
         onRevealInFinder={noop}
       />
     )
@@ -127,12 +132,54 @@ describe("JobList", () => {
         onKickstart={noop}
         onDelete={noop}
         onSelect={noop}
+        onViewLogs={noop}
         onRevealInFinder={noop}
       />
     )
     // mockJobs has one Running and one Unloaded agent → exactly one Run now button
     const runButtons = screen.getAllByRole("button", { name: "Run now" })
     expect(runButtons).toHaveLength(1)
+  })
+
+  it("shows Logs button only for running agents", () => {
+    render(
+      <JobList
+        jobs={mockJobs}
+        loading={false}
+        onStart={noop}
+        onStop={noop}
+        onRestart={noop}
+        onKickstart={noop}
+        onDelete={noop}
+        onSelect={noop}
+        onViewLogs={noop}
+        onRevealInFinder={noop}
+      />
+    )
+    const logButtons = screen.getAllByRole("button", { name: "Logs" })
+    expect(logButtons).toHaveLength(1)
+  })
+
+  it("calls onViewLogs when Logs button is clicked", () => {
+    const onViewLogs = vi.fn()
+    render(
+      <JobList
+        jobs={mockJobs}
+        loading={false}
+        onStart={noop}
+        onStop={noop}
+        onRestart={noop}
+        onKickstart={noop}
+        onDelete={noop}
+        onSelect={noop}
+        onViewLogs={onViewLogs}
+        onRevealInFinder={noop}
+      />
+    )
+    screen.getByRole("button", { name: "Logs" }).click()
+    expect(onViewLogs).toHaveBeenCalledWith(
+      expect.objectContaining({ label: "com.example.running" })
+    )
   })
 
   it("calls onKickstart when Run now is clicked", () => {
@@ -147,6 +194,7 @@ describe("JobList", () => {
         onKickstart={onKickstart}
         onDelete={noop}
         onSelect={noop}
+        onViewLogs={noop}
         onRevealInFinder={noop}
       />
     )
