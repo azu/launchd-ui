@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 import { useTheme } from "./useTheme"
 
 let matchesDark = false
 const listeners: Array<() => void> = []
+const originalMatchMedia = window.matchMedia
 
 beforeEach(() => {
   matchesDark = false
@@ -26,6 +27,10 @@ beforeEach(() => {
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
   }))
+})
+
+afterEach(() => {
+  window.matchMedia = originalMatchMedia
 })
 
 describe("useTheme", () => {
@@ -88,5 +93,15 @@ describe("useTheme", () => {
     matchesDark = true
     listeners.forEach((fn) => fn())
     expect(document.documentElement.classList.contains("dark")).toBe(true)
+  })
+
+  it("handles rapid cycle calls correctly", () => {
+    const { result } = renderHook(() => useTheme())
+
+    act(() => {
+      result.current.cycle()
+      result.current.cycle()
+    })
+    expect(result.current.theme).toBe("light")
   })
 })

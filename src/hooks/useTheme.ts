@@ -26,20 +26,22 @@ export function useTheme() {
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t)
-    if (t === "system") {
-      localStorage.removeItem(STORAGE_KEY)
-    } else {
-      localStorage.setItem(STORAGE_KEY, t)
-    }
-    applyDark(resolveTheme(t))
   }, [])
 
   const cycle = useCallback(() => {
-    setTheme(theme === "system" ? "dark" : theme === "dark" ? "light" : "system")
-  }, [theme, setTheme])
+    setThemeState((prev) =>
+      prev === "system" ? "dark" : prev === "dark" ? "light" : "system"
+    )
+  }, [])
 
   useEffect(() => {
     applyDark(resolveTheme(theme))
+    if (theme === "system") {
+      localStorage.removeItem(STORAGE_KEY)
+    } else {
+      localStorage.setItem(STORAGE_KEY, theme)
+    }
+
     if (theme !== "system") return
     const mql = window.matchMedia(query)
     const handler = () => applyDark(getSystemDark())

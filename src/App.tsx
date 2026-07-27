@@ -104,6 +104,7 @@ function App() {
               size="icon"
               className="h-8 w-8"
               onClick={cycle}
+              aria-label={`Theme: ${theme}`}
               title={`Theme: ${theme}`}
             >
               <ThemeIcon className="h-4 w-4" />
