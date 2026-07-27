@@ -74,13 +74,13 @@ function SourceBadge({ source }: { source: JobListEntry["source"] }) {
       return <Badge variant="outline">User</Badge>
     case "SystemAgent":
       return (
-        <Badge variant="outline" className="border-blue-300 text-blue-700">
+        <Badge variant="outline" className="border-blue-300 text-blue-700 dark:border-blue-500 dark:text-blue-300">
           System
         </Badge>
       )
     case "SystemDaemon":
       return (
-        <Badge variant="outline" className="border-purple-300 text-purple-700">
+        <Badge variant="outline" className="border-purple-300 text-purple-700 dark:border-purple-500 dark:text-purple-300">
           Daemon
         </Badge>
       )
