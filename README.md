@@ -78,16 +78,15 @@ cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings  # Rust lint
 
 ## Release
 
-The app version lives in four files that must always match: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and `src-tauri/Cargo.lock`. Do not edit them by hand or with `npm version`; use the scripts below.
+Releases are made through a release PR:
 
-```bash
-pnpm version:check   # Verify that all version files agree
-pnpm version:patch   # or version:minor / version:major — bumps all files, commits, and tags vX.Y.Z
-git push origin main --follow-tags
-```
+1. Run the [Create Release PR](https://github.com/azu/launchd-ui/actions/workflows/create-release-pr.yml) workflow and choose `patch`, `minor`, or `major`.
+   It bumps the version in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and `src-tauri/Cargo.lock`, and opens a PR labeled `Type: Release`. The PR body is used as the release notes, so edit it as needed.
+2. Merge the PR. The Release workflow creates a draft release, builds the Apple Silicon (`aarch64`) and Intel (`x64`) apps, checks that all assets were uploaded, and then publishes the release and its `vX.Y.Z` tag.
 
-Pushing the `vX.Y.Z` tag runs the Release workflow. It first checks that every version file matches the tag and fails otherwise, then builds the Apple Silicon (`aarch64`) and Intel (`x64`) apps and uploads them to the release for that tag.
-Do not create a release tag from the GitHub UI without bumping the version first; the workflow will refuse to build it.
+The four version files must always match. `pnpm version:check` verifies this, and `pnpm version:patch` / `version:minor` / `version:major` bump them together locally. Do not edit them by hand or with `npm version`.
+
+The Create Release PR workflow needs "Allow GitHub Actions to create and approve pull requests" enabled under Settings > Actions > General > Workflow permissions. Because the release PR is opened with `GITHUB_TOKEN`, its CI run waits for approval from someone with write access.
 
 ## License
 
