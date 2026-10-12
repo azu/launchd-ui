@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { JobList } from "./JobList"
 import type { JobListEntry } from "@/types"
 
@@ -114,6 +114,35 @@ describe("JobList", () => {
       />
     )
     expect(screen.getByText("1234")).toBeInTheDocument()
+  })
+
+  it("sorts by label ascending and descending when the header is clicked", () => {
+    render(
+      <JobList
+        jobs={mockJobs}
+        loading={false}
+        onStart={noop}
+        onStop={noop}
+        onRestart={noop}
+        onKickstart={noop}
+        onDelete={noop}
+        onSelect={noop}
+        onRevealInFinder={noop}
+      />
+    )
+
+    const labelHeader = screen.getByRole("button", { name: "Sort by Label" })
+    const getLabels = () =>
+      Array.from(document.querySelectorAll("tbody tr td:first-child"), (cell) =>
+        cell.textContent
+      )
+
+    expect(getLabels()).toEqual(["com.example.running", "com.example.stopped"])
+    fireEvent.click(labelHeader)
+    expect(getLabels()).toEqual(["com.example.stopped", "com.example.running"])
+    expect(labelHeader.querySelector("svg")).toBeTruthy()
+    fireEvent.click(labelHeader)
+    expect(getLabels()).toEqual(["com.example.running", "com.example.stopped"])
   })
 
   it('shows "Run now" only for active (non-Unloaded) agents', () => {
