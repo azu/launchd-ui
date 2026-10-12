@@ -19,10 +19,12 @@ macOS launchd エージェント/デーモン管理GUI（Tauri v2）
 - `pnpm lint` — oxlint
 - `pnpm typecheck` — TypeScript type check
 - `pnpm test` — vitest (frontend tests)
+- `pnpm test:release` — node:test tests for release/version scripts and workflow
 - `cargo test --manifest-path src-tauri/Cargo.toml` — Rust tests
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check` — Rust format check
 - `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` — Rust lint
 
+- `pnpm version:check` — Verify package.json, tauri.conf.json, Cargo.toml, and Cargo.lock versions match
 - `pnpm version:patch` — Bump patch version, commit, and create git tag
 - `pnpm version:minor` — Bump minor version, commit, and create git tag
 - `pnpm version:major` — Bump major version, commit, and create git tag

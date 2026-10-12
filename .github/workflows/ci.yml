@@ -35,6 +35,12 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Check version files are consistent
+        run: pnpm version:check
+
+      - name: Release script tests
+        run: pnpm test:release
+
   rust:
     runs-on: macos-latest
     permissions:

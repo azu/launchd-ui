@@ -1,44 +1,28 @@
-import { readFileSync, writeFileSync } from "node:fs"
+import {
+  assertVersionsConsistent,
+  bumpVersion,
+  readVersions,
+  writeVersions,
+  type BumpKind,
+} from "./release-version.ts"
 
-const bump = process.argv[2] as "patch" | "minor" | "major" | undefined
+const bump = process.argv[2] as BumpKind | undefined
 if (!bump || !["patch", "minor", "major"].includes(bump)) {
   console.error("Usage: node scripts/bump-version.ts <patch|minor|major>")
   process.exit(1)
 }
 
-const pkg = JSON.parse(readFileSync("package.json", "utf-8"))
-const [major, minor, patch] = pkg.version.split(".").map(Number)
+const root = process.cwd()
 
-const newVersion =
-  bump === "major"
-    ? `${major + 1}.0.0`
-    : bump === "minor"
-      ? `${major}.${minor + 1}.0`
-      : `${major}.${minor}.${patch + 1}`
-
-// package.json
-pkg.version = newVersion
-writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n")
-
-// src-tauri/tauri.conf.json
-const tauriConf = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf-8"))
-tauriConf.version = newVersion
-writeFileSync("src-tauri/tauri.conf.json", JSON.stringify(tauriConf, null, 2) + "\n")
-
-// src-tauri/Cargo.toml
-const cargoToml = readFileSync("src-tauri/Cargo.toml", "utf-8")
-const updatedCargo = cargoToml.replace(
-  /^version = ".*"$/m,
-  `version = "${newVersion}"`
-)
-writeFileSync("src-tauri/Cargo.toml", updatedCargo)
-
-// src-tauri/Cargo.lock — update the version for the launchd-ui package
-const cargoLock = readFileSync("src-tauri/Cargo.lock", "utf-8")
-const updatedLock = cargoLock.replace(
-  /(\[\[package\]\]\nname = "launchd-ui"\nversion = )"[^"]*"/,
-  `$1"${newVersion}"`
-)
-writeFileSync("src-tauri/Cargo.lock", updatedLock)
-
-console.log(`v${newVersion}`)
+try {
+  // Refuse to bump from an inconsistent state; otherwise the new tag and the
+  // version embedded in the app (and used for asset upload) would diverge.
+  const current = assertVersionsConsistent(readVersions(root))
+  const newVersion = bumpVersion(current, bump)
+  writeVersions(root, newVersion)
+  assertVersionsConsistent(readVersions(root), newVersion)
+  console.log(`v${newVersion}`)
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error)
+  process.exit(1)
+}
