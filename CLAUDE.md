@@ -19,13 +19,16 @@ macOS launchd エージェント/デーモン管理GUI（Tauri v2）
 - `pnpm lint` — oxlint
 - `pnpm typecheck` — TypeScript type check
 - `pnpm test` — vitest (frontend tests)
+- `pnpm test:release` — node:test tests for release/version scripts and workflow
 - `cargo test --manifest-path src-tauri/Cargo.toml` — Rust tests
 - `cargo fmt --manifest-path src-tauri/Cargo.toml --check` — Rust format check
 - `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` — Rust lint
 
-- `pnpm version:patch` — Bump patch version, commit, and create git tag
-- `pnpm version:minor` — Bump minor version, commit, and create git tag
-- `pnpm version:major` — Bump major version, commit, and create git tag
+- `pnpm version:check` — Verify package.json, tauri.conf.json, Cargo.toml, and Cargo.lock versions match
+- `pnpm version:patch` — Bump patch version in all version files (no commit/tag)
+- `pnpm version:minor` — Bump minor version in all version files (no commit/tag)
+- `pnpm version:major` — Bump major version in all version files (no commit/tag)
+- Releases: run the "Create Release PR" workflow, then merge the generated PR (labeled `Type: Release`) to build and publish
 
 Note: `cargo tauri` is not available. Use `pnpm tauri` or `pnpm exec tauri` instead.
 

@@ -1587,7 +1587,7 @@ dependencies = [
 
 [[package]]
 name = "launchd-ui"
-version = "1.2.0"
+version = "1.4.1"
 dependencies = [
  "dirs",
  "plist",

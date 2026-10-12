@@ -1,0 +1,64 @@
+name: Create Release PR
+on:
+  workflow_dispatch:
+    inputs:
+      semver:
+        description: "New version (semver)"
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions: {}
+
+jobs:
+  create-release-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      # Bumps package.json, tauri.conf.json, Cargo.toml and Cargo.lock together
+      # and fails if they were not in sync beforehand.
+      - name: Bump version
+        id: version
+        env:
+          SEMVER: ${{ inputs.semver }}
+        run: |
+          node scripts/bump-version.ts "$SEMVER"
+          echo "version=$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
+
+      # The PR body becomes the release notes when the PR is merged.
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ steps.version.outputs.version }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$TAG" \
+            -f target_commitish="$GITHUB_SHA" \
+            --jq .body > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(release): v${{ steps.version.outputs.version }}"
+          branch: release/v${{ steps.version.outputs.version }}
+          delete-branch: true
+          title: "v${{ steps.version.outputs.version }}"
+          body-path: ${{ runner.temp }}/release-notes.md
+          labels: "Type: Release"
+          assignees: ${{ github.actor }}

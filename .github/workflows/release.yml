@@ -1,11 +1,72 @@
 name: Release
 on:
-  push:
-    tags:
-      - "v*"
+  # Runs when a release PR opened by "Create Release PR" is merged
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions: {}
 
 jobs:
+  create-release:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'Type: Release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      release_id: ${{ steps.draft.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Read version
+        id: version
+        run: |
+          node scripts/check-version.ts
+          echo "tag=v$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
+
+      # The release stays a draft until every asset is uploaded, so the
+      # "latest" release never points at a release without downloads.
+      - name: Create draft release
+        id: draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          RELEASE_NOTES: ${{ github.event.pull_request.body }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --silent 2>/dev/null; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .id")
+          if [ -n "$existing" ]; then
+            echo "::error::A release for $TAG already exists (id: $existing). Delete it before re-running."
+            exit 1
+          fi
+          printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/release-notes.md"
+          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases" \
+            -f tag_name="$TAG" \
+            -f target_commitish="$TARGET_SHA" \
+            -f name="$TAG" \
+            -F body=@"$RUNNER_TEMP/release-notes.md" \
+            -F draft=true \
+            --jq .id)
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: create-release
     permissions:
       contents: write
     strategy:
@@ -20,12 +81,20 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
           persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
+
+      # Fail before building if the release tag and the version files disagree.
+      # Otherwise tauri-action builds the app with a stale version.
+      - name: Verify version files match tag
+        env:
+          RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+        run: node scripts/check-version.ts "$RELEASE_TAG"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
@@ -43,14 +112,43 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
-      - name: Build and release
+      - name: Build and upload
         uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: "v__VERSION__"
-          releaseBody: "See assets for downloads."
-          releaseDraft: false
-          prerelease: false
+          # Upload to the draft release created above, never to a release
+          # derived from tauri.conf.json.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          includeUpdaterJson: false
           args: ${{ matrix.args }}
+
+  publish-release:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Verify assets and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          version="${TAG#v}"
+          assets=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq '.[].name')
+          for name in \
+            "launchd-ui_aarch64.app.tar.gz" \
+            "launchd-ui_x64.app.tar.gz" \
+            "launchd-ui_${version}_aarch64.dmg" \
+            "launchd-ui_${version}_x64.dmg"; do
+            if ! grep -qxF "$name" <<< "$assets"; then
+              echo "::error::Missing release asset: $name"
+              exit 1
+            fi
+          done
+          # Publishing creates the tag at the release PR's merge commit.
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            -F draft=false \
+            -f make_latest=true \
+            --silent
