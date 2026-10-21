@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Plus, X } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -85,6 +86,19 @@ function emptyConfig(): PlistConfig {
   }
 }
 
+type EnvRow = { key: string; value: string }
+
+function envToRows(env: Record<string, string> | null): EnvRow[] {
+  return Object.entries(env ?? {}).map(([key, value]) => ({ key, value }))
+}
+
+function rowsToEnv(rows: EnvRow[]): Record<string, string> | null {
+  const entries = rows
+    .map(({ key, value }) => [key.trim(), value] as const)
+    .filter(([key]) => key !== "")
+  return entries.length > 0 ? Object.fromEntries(entries) : null
+}
+
 type ScheduleType = "none" | "interval" | "calendar"
 
 type HourMode = "specific" | "every" | "range"
@@ -117,6 +131,9 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
       : ""
   )
   const initPlist = editingJob?.plist ?? emptyConfig()
+  const [envRows, setEnvRows] = useState<EnvRow[]>(
+    envToRows(initPlist.environment_variables)
+  )
   const [scheduleType, setScheduleType] = useState<ScheduleType>(
     detectScheduleType(initPlist)
   )
@@ -176,6 +193,7 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
       standard_out_path: config.standard_out_path?.trim() || null,
       standard_error_path: config.standard_error_path?.trim() || null,
       working_directory: config.working_directory?.trim() || null,
+      environment_variables: rowsToEnv(envRows),
     }
 
     setSaving(true)
@@ -591,6 +609,59 @@ export function JobForm({ open, onClose, onSave, editingJob }: JobFormProps) {
             />
             <p className="text-xs text-muted-foreground">
               File path to write the command's error output. Useful for debugging failures.
+            </p>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>
+              Environment Variables <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+            </Label>
+            {envRows.map((row, i) => (
+              <div key={i} className="flex gap-2">
+                <Input
+                  aria-label={`Environment variable name ${i + 1}`}
+                  className="w-2/5 font-mono"
+                  placeholder="PATH"
+                  value={row.key}
+                  onChange={(e) =>
+                    setEnvRows(envRows.map((r, j) => (j === i ? { ...r, key: e.target.value } : r)))
+                  }
+                  spellCheck={false}
+                  autoCorrect="off"
+                />
+                <Input
+                  aria-label={`Environment variable value ${i + 1}`}
+                  className="flex-1 font-mono"
+                  placeholder="/usr/bin:/bin"
+                  value={row.value}
+                  onChange={(e) =>
+                    setEnvRows(envRows.map((r, j) => (j === i ? { ...r, value: e.target.value } : r)))
+                  }
+                  spellCheck={false}
+                  autoCorrect="off"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remove environment variable ${i + 1}`}
+                  onClick={() => setEnvRows(envRows.filter((_, j) => j !== i))}
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => setEnvRows([...envRows, { key: "", value: "" }])}
+            >
+              <Plus className="size-4" /> Add variable
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Environment passed to the command. launchd agents get a minimal PATH, so set it here if your script needs other tools.
             </p>
           </div>
 
