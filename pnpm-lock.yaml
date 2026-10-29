@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   deepmerge@4.3.1:
-    hash: b9bf2653110bb39a8b5a62c1f11a9654077e2de85acc68b25c0a9cc5e360d158
+    hash: 8f89ff8cc683a08a29f37f14a4c386984f5739e54d7b034db78fee3904fa439c
     path: patches/deepmerge@4.3.1.patch
 
 importers:
@@ -4566,7 +4566,7 @@ snapshots:
       '@dotenvx/dotenvx': 1.52.0
       cn: 0.2.6
       code-block-writer: 13.0.3
-      deepmerge: 4.3.1(patch_hash=b9bf2653110bb39a8b5a62c1f11a9654077e2de85acc68b25c0a9cc5e360d158)
+      deepmerge: 4.3.1(patch_hash=8f89ff8cc683a08a29f37f14a4c386984f5739e54d7b034db78fee3904fa439c)
       execa: 9.6.1
       fast-glob: 3.3.3
       fs-extra: 11.3.3
@@ -4987,7 +4987,7 @@ snapshots:
 
   dedent@1.7.1: {}
 
-  deepmerge@4.3.1(patch_hash=b9bf2653110bb39a8b5a62c1f11a9654077e2de85acc68b25c0a9cc5e360d158): {}
+  deepmerge@4.3.1(patch_hash=8f89ff8cc683a08a29f37f14a4c386984f5739e54d7b034db78fee3904fa439c): {}
 
   default-browser-id@5.0.1: {}
 
@@ -5712,7 +5712,7 @@ snapshots:
       cn: 0.2.6
       commander: 14.0.3
       dedent: 1.7.1
-      deepmerge: 4.3.1(patch_hash=b9bf2653110bb39a8b5a62c1f11a9654077e2de85acc68b25c0a9cc5e360d158)
+      deepmerge: 4.3.1(patch_hash=8f89ff8cc683a08a29f37f14a4c386984f5739e54d7b034db78fee3904fa439c)
       diff: 8.0.3
       execa: 9.6.1
       fast-glob: 3.3.3
