@@ -6,7 +6,7 @@ authors = ["azu"]
 license = "MIT"
 repository = "https://github.com/azu/launchd-ui"
 edition = "2024"
-rust-version = "1.85.0"
+rust-version = "1.88.0"
 
 [lib]
 name = "launchd_ui_lib"
