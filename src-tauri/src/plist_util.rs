@@ -33,10 +33,10 @@ pub fn scan_plist_files() -> Vec<(String, JobSource)> {
         if let Ok(entries) = std::fs::read_dir(&dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("plist") {
-                    if let Some(path_str) = path.to_str() {
-                        results.push((path_str.to_string(), source.clone()));
-                    }
+                if path.extension().and_then(|e| e.to_str()) == Some("plist")
+                    && let Some(path_str) = path.to_str()
+                {
+                    results.push((path_str.to_string(), source.clone()));
                 }
             }
         }
